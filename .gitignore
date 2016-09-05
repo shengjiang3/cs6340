@@ -1,2 +1,4 @@
 *.dll
 *.dll.mdb
+*.exe
+*.exe.mdb
