@@ -2,3 +2,4 @@
 *.dll.mdb
 *.exe
 *.exe.mdb
+.metadata
