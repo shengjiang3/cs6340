@@ -1,0 +1,21 @@
+[EMMA v2.0.5312 report, generated Sun Sep 18 18:07:07 EDT 2016]
+-------------------------------------------------------------------------------
+OVERALL COVERAGE SUMMARY:
+
+[class, %]	[method, %]	[block, %]	[line, %]	[name]
+58%  (11/19)!	30%  (32/106)!	26%  (687/2634)!	23%  (143.9/627)!	all classes
+
+OVERALL STATS SUMMARY:
+
+total packages:	2
+total classes:	19
+total methods:	106
+total executable files:	10
+total executable lines:	627
+
+COVERAGE BREAKDOWN BY PACKAGE:
+
+[class, %]	[method, %]	[block, %]	[line, %]	[name]
+59%  (10/17)!	31%  (29/94)!	26%  (617/2389)!	23%  (130.2/564)!	com.example.android.musicplayer
+50%  (1/2)!	25%  (3/12)!	29%  (70/245)!	22%  (13.7/63)!	com.example.instrumentation
+-------------------------------------------------------------------------------
