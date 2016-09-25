@@ -3,3 +3,4 @@
 *.exe
 *.exe.mdb
 .metadata
+*.DS_Store
