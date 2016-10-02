@@ -1,0 +1,59 @@
+import korat.finitization.*;
+import korat.finitization.impl.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Stack;
+
+public class AcyclicGraph {
+    Vertex root;
+    public static class Vertex {
+        Vertex[] outgoingEdges;
+    }
+    
+    private int size;
+    
+    private boolean depthFirstSearch(Vertex v, HashMap<Vertex, Boolean> acyclicAtVertex) {
+        HashSet<Vertex> visited = new HashSet<Vertex>();
+        if (!acyclicAtVertex.containsKey(v)) {
+        	acyclicAtVertex.put(v, false);
+             for (int i = 0; i < v.outgoingEdges.length; i++) {
+            	 if (v.outgoingEdges[i] == null)
+            		 return false;
+                 if (!visited.add(v.outgoingEdges[i]))
+                	 return false;
+                 if (!depthFirstSearch(v.outgoingEdges[i], acyclicAtVertex))
+                	 return false;
+             }
+        } else if (!acyclicAtVertex.get(v))
+        	return false;
+        acyclicAtVertex.put(v, true);
+        return true;
+    }
+    
+    public boolean repOK() {
+        // returns true if and if only the graph reachable from "root" is a directed acyclic graph
+        // complete this method
+    	// ...which means no cycles
+    	
+    	// Trivial Case
+    	if (root == null)
+    		return size == 0;
+    	
+        HashMap<Vertex, Boolean> acyclicAtVertex = new HashMap<Vertex, Boolean>();
+        return depthFirstSearch(root, acyclicAtVertex) && acyclicAtVertex.size() == size;
+    }
+    
+    public static IFinitization finAcyclicGraph(int nodesNum) {
+        // complete this method
+    	IFinitization f = FinitizationFactory.create(AcyclicGraph.class);
+    	IObjSet vertexs = f.createObjSet(Vertex.class, nodesNum, true);
+    	f.set("root", vertexs);
+    	IIntSet arrayLength = f.createIntSet(0, nodesNum-1);
+    	IArraySet oeVertexs = f.createArraySet(Vertex[].class, arrayLength, vertexs, nodesNum);
+        f.set("Vertex.outgoingEdges", oeVertexs);
+        IIntSet sizes = f.createIntSet(0, nodesNum);
+        f.set("size", sizes);
+        return f;
+    }
+}

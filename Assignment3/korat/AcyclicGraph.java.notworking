@@ -1,0 +1,86 @@
+import korat.finitization.*;
+import korat.finitization.impl.*;
+import korat.utils.Pair;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Stack;
+
+public class AcyclicGraph {
+    Vertex root;
+    public static class Vertex {
+        Vertex[] outgoingEdges;
+    }
+    
+//    public ArrayList<Vertex> depthFirstSearch(Vertex v, ArrayList<Vertex> discovered) {
+//    	discovered.add(v);
+//    	for (int i = 0; i < v.outgoingEdges.length; i++) {
+//    		Vertex c = v.outgoingEdges[i];
+//    		if (c != null && !discovered.contains(c))
+//    			discovered = depthFirstSearch(c, discovered);
+//    	}
+//    	return discovered;
+//    }
+    
+    public Pair<Boolean, HashMap<Vertex, Integer>> visitVertex(Vertex v, HashMap<Vertex, Integer> marked) {
+    	if (v == null)
+    		return new Pair<Boolean, HashMap<Vertex, Integer>>(false, marked);
+    	if (!marked.containsKey(v))
+    		marked.put(v, 0);
+    	if (marked.get(v) == 1)
+    		return new Pair<Boolean, HashMap<Vertex, Integer>>(false, marked);
+    	if (marked.get(v) == 0) {
+    		marked.put(v, 1);
+    		for (int i = 0; i < v.outgoingEdges.length; i++) {
+    			Pair<Boolean, HashMap<Vertex, Integer>> r = visitVertex(v.outgoingEdges[i], marked);
+    			marked = r.getData2();
+    			if (!r.getData1())
+    				return new Pair<Boolean, HashMap<Vertex, Integer>>(false, marked);
+    		}
+    		marked.put(v, 2);
+    	}
+    	return new Pair<Boolean, HashMap<Vertex, Integer>>(true, marked);
+    }
+    
+    public boolean repOK() {
+        // returns true if and if only the graph reachable from "root" is a directed acyclic graph
+        // complete this method
+    	// ...which means no cycles
+    	
+    	// Trivial Case
+    	if (root == null)
+    		return true;
+    	
+    	//ArrayList<Vertex> vertexes = depthFirstSearch(root, new ArrayList<Vertex>());
+    	HashMap<Vertex, Integer> marked = new HashMap<Vertex, Integer>();
+    	//for (int i = 0; i < vertexes.size(); i++)
+    	//	marked.put(vertexes.get(i), 0);
+		//while there are unmarked nodes do
+    	
+		Pair<Boolean, HashMap<Vertex, Integer>> r = visitVertex(root, marked);
+		marked = r.getData2();
+		if (r.getData1())
+			return false;
+    			
+		
+		
+    	
+    	
+    	return true;
+    }
+    
+    public static IFinitization finAcyclicGraph(int nodesNum) {
+        // complete this method
+    	IFinitization f = FinitizationFactory.create(AcyclicGraph.class);
+    	IObjSet vertexs = f.createObjSet(Vertex.class, nodesNum, true);
+    	f.set("root", vertexs);
+    	IIntSet arrayLength = f.createIntSet(0, nodesNum-1);
+    	IArraySet oeVertexs = f.createArraySet(Vertex[].class, arrayLength, vertexs, nodesNum);
+        f.set("Vertex.outgoingEdges", oeVertexs);
+        return f;
+    }
+}

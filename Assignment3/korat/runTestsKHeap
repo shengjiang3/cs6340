@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for k in {3..4}; do 
+  for n in {0..5}; do 
+    out=$(java -cp korat.jar:kheap.jar -Xverify:none korat.Korat -c KHeap --args $k,$n,$n,$n | grep "New found")
+    echo "KHeap.java;k=$k;n=$n ${out:10}"
+  done
+done

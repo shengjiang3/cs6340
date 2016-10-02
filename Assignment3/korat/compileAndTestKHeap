@@ -1,0 +1,5 @@
+#!/bin/bash
+
+javac -cp korat.jar KHeap.java
+jar cf kheap.jar KHeap.class
+java -cp korat.jar:kheap.jar -Xverify:none korat.Korat -c KHeap --args 3,3,3,3

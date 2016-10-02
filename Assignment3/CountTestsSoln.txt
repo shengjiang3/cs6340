@@ -1,0 +1,20 @@
+KHeap.java;k=3;n=0 1
+KHeap.java;k=3;n=1 4
+KHeap.java;k=3;n=2 15
+KHeap.java;k=3;n=3 66
+KHeap.java;k=3;n=4 405
+KHeap.java;k=3;n=5 2633
+======================
+KHeap.java;k=4;n=0 1
+KHeap.java;k=4;n=1 4
+KHeap.java;k=4;n=2 15
+KHeap.java;k=4;n=3 66
+KHeap.java;k=4;n=4 405
+KHeap.java;k=4;n=5 3550
+======================
+AcyclicGraph.java;n=0 1
+AcyclicGraph.java;n=1 2
+AcyclicGraph.java;n=2 3
+AcyclicGraph.java;n=3 7
+AcyclicGraph.java;n=4 64
+AcyclicGraph.java;n=5 3463

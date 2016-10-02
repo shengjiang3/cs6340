@@ -1,0 +1,5 @@
+#!/bin/bash
+
+javac -cp korat.jar AcyclicGraph.java
+jar cf acyclicgraph.jar AcyclicGraph.class AcyclicGraph\$Vertex.class
+java -cp korat.jar:acyclicgraph.jar -Xverify:none korat.Korat -c AcyclicGraph --args 2

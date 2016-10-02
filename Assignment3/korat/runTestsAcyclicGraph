@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for n in {0..5}; do 
+  out=$(java -cp korat.jar:acyclicgraph.jar -Xverify:none korat.Korat -c AcyclicGraph --args $n | grep "New found")
+  echo "AcyclicGraph.java;n=$n ${out:10}"
+done
