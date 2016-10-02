@@ -1,0 +1,8 @@
+java -classpath .:../randoop-2.1.4.jar randoop.main.Main gentests --classlist=geometry-classes.txt --no-regression-tests=true --timelimit 60
+
+# where the current directory contained the following files:
+#  Line.class
+#  Line.java
+#  Point.class
+#  Point.java
+#  geometry-classes.txt
