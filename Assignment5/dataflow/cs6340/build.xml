@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="extra" default="compile">
+    <property name="chord.home.dir" location=".."/>
+
+    <target name="compile">
+        <mkdir dir="classes"/>
+        <javac debug="true" debuglevel="source,lines,vars" includeAntRuntime="false"
+            source="1.5" target="1.5" srcdir="src" destdir="classes"
+            classpath="${chord.home.dir}/chord.jar"/>
+    </target>
+
+    <target name="liveness">
+		<property name="chord.run.analyses" value="liveness"/>
+		<antcall target="run"/>
+	</target>
+
+    <target name="reachdef">
+		<property name="chord.run.analyses" value="reachdef"/>
+		<antcall target="run"/>
+	</target>
+
+    <target name="run">
+		<fail unless="chord.run.analyses" message="Property chord.run.analyses must be set"/>
+		<fail unless="chord.work.dir" message="Property chord.work.dir must be set"/>
+        <property name="chord.ext.java.analysis.path" location="classes"/>
+        <java classname="chord.project.Boot" failonerror="true" classpath="${chord.home.dir}/chord.jar">
+            <syspropertyset>
+                <propertyref builtin="all"/>
+            </syspropertyset>
+        </java>
+	</target>
+
+    <target name="clean">
+        <delete dir="classes"/>
+    </target>
+</project>

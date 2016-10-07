@@ -1,0 +1,87 @@
+********** ENTER Analysis Results **********
+10!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:6) [30: IFCMP_I R11, T12, GE, BB5]
+	IN :R24 R2 R11 R10 T12 
+	OUT:R24 R2 R11 R10 
+49!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [37: INVOKEVIRTUAL_A T22, append:(Ljava/lang/String;)Ljava/lang/StringBuilder;@java.lang.StringBuilder, (T20, T21)]
+	IN :T21 R15 R2 T20 T17 R14 
+	OUT:T22 R2 R15 T17 R14 
+49!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [38: MOVE_A T21, AConst: " "]
+	IN :R15 R2 T20 T17 R14 
+	OUT:T21 R2 R15 T20 T17 R14 
+58!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:11) [41: ADD_I R24, R15, IConst: 1]
+	IN :R15 R2 R14 
+	OUT:R24 R2 R14 
+-50!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:0) [50: PHI R11, (R10, R13), { BB2, BB4 }]
+	IN :R13 R24 R2 R10 
+	OUT:R24 R2 R11 R10 
+4!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:3) [2: MOVE_A R2, T9]
+	IN :R13 R24 T9 
+	OUT:R13 R24 R2 
+6!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:6) [3: MOVE_I R10, IConst: 0]
+	IN :R13 R24 R2 
+	OUT:R13 R24 R2 R10 
+43!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [35: ALOAD_I T8, R2, R15]
+	IN :R15 R2 T18 T17 R14 
+	OUT:R2 R15 T8 T17 T18 R14 
+9!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:6) [29: ARRAYLENGTH T12, R2]
+	IN :R24 R2 R11 R10 
+	OUT:R24 R2 R11 R10 T12 
+52!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [39: INVOKEVIRTUAL_A T23, toString:()Ljava/lang/String;@java.lang.StringBuilder, (T22)]
+	IN :T22 R15 R2 T17 R14 
+	OUT:R2 R15 T17 T23 R14 
+2!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:3) [1: NEWARRAY T9, IConst: 10, int[]]
+	IN :R13 R24 
+	OUT:R13 R24 T9 
+38!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [34: INVOKESTATIC_V <init>:()V@java.lang.StringBuilder, (T19)]
+	IN :R15 R2 T18 T17 T19 R14 
+	OUT:R2 R15 T17 T18 R14 
+34!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [32: NEW T18, java.lang.StringBuilder]
+	IN :R15 R2 T17 R14 
+	OUT:R2 R15 T17 T18 R14 
+64!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:14) [43: GETSTATIC_A T25, .out]
+	IN :
+	OUT:T25 
+31!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [31: GETSTATIC_A T17, .out]
+	IN :R15 R2 R14 
+	OUT:R2 R15 T17 R14 
+55!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [40: INVOKEVIRTUAL_V print:(Ljava/lang/String;)V@java.io.PrintStream, (T17, T23)]
+	IN :R15 R2 T17 T23 R14 
+	OUT:R2 R15 R14 
+28!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:11) [28: IFCMP_I R15, T16, GE, BB8]
+	IN :R15 R2 T16 R14 
+	OUT:R2 R15 R14 
+20!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:6) [48: GOTO BB3]
+	IN :R13 R24 R2 R10 
+	OUT:R13 R24 R2 R10 
+37!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [33: MOVE_A T19, T18]
+	IN :R15 R2 T18 T17 R14 
+	OUT:R2 R15 T17 T18 R14 T19 
+61!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:11) [42: GOTO BB6]
+	IN :R24 R2 R14 
+	OUT:R24 R2 R14 
+16!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:7) [46: ASTORE_I R11, R2, R11]
+	IN :R24 R2 R11 R10 
+	OUT:R24 R2 R11 R10 
+27!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:11) [27: ARRAYLENGTH T16, R2]
+	IN :R15 R2 R14 
+	OUT:R2 R15 T16 R14 
+70!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:15) [45: RETURN_V]
+	IN :
+	OUT:
+24!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:11) [49: MOVE_I R14, IConst: 0]
+	IN :R24 R2 
+	OUT:R24 R2 R14 
+17!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:6) [47: ADD_I R13, R11, IConst: 1]
+	IN :R24 R2 R11 R10 
+	OUT:R13 R24 R2 R10 
+44!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:12) [36: INVOKEVIRTUAL_A T20, append:(I)Ljava/lang/StringBuilder;@java.lang.StringBuilder, (T18, T8)]
+	IN :R15 R2 T8 T18 T17 R14 
+	OUT:R2 R15 T20 T17 R14 
+67!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:14) [44: INVOKEVIRTUAL_V println:()V@java.io.PrintStream, (T25)]
+	IN :T25 
+	OUT:
+-51!main:([Ljava/lang/String;)V@ArrayDemo (ArrayDemo.java:0) [51: PHI R15, (R14, R24), { BB5, BB7 }]
+	IN :R24 R2 R14 
+	OUT:R2 R15 R14 
+********** LEAVE Analysis Results **********
+

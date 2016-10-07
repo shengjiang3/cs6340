@@ -1,0 +1,60 @@
+********** ENTER Analysis Results **********
+24!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:14) [12: ADD_I T16, R14, R13]
+	IN :R13 R15 R14 
+	OUT:T16 R15 
+3!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:3) [2: MOVE_I R6, IConst: 1]
+	IN :
+	OUT:
+32!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:18) [16: ADD_I T20, R18, R17]
+	IN :R18 R17 R19 
+	OUT:T20 R19 
+17!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:10) [9: MOVE_I R13, T12]
+	IN :R11 T12 
+	OUT:R11 R13 
+25!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:14) [13: MOVE_I R17, T16]
+	IN :T16 R15 
+	OUT:R17 R15 
+35!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:19) [18: MOVE_I R22, R19]
+	IN :R19 
+	OUT:
+29!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:17) [15: MOVE_I R19, R17]
+	IN :R18 R17 
+	OUT:R18 R17 R19 
+1!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:3) [1: MOVE_I R5, IConst: 0]
+	IN :
+	OUT:
+11!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:7) [6: MOVE_I R10, IConst: 1]
+	IN :R9 
+	OUT:R9 
+36!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:21) [19: RETURN_V]
+	IN :
+	OUT:
+16!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:10) [8: ADD_I T12, IConst: 1, R9]
+	IN :R11 R9 
+	OUT:R11 T12 
+5!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:5) [3: MOVE_I R7, IConst: 1]
+	IN :
+	OUT:
+33!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:18) [17: MOVE_I R21, T20]
+	IN :T20 R19 
+	OUT:R19 
+27!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:15) [14: MOVE_I R18, R15]
+	IN :R17 R15 
+	OUT:R18 R17 
+21!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:13) [11: MOVE_I R15, R13]
+	IN :R13 R14 
+	OUT:R13 R15 R14 
+19!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:11) [10: MOVE_I R14, R11]
+	IN :R11 R13 
+	OUT:R13 R14 
+9!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:6) [5: MOVE_I R9, T8]
+	IN :T8 
+	OUT:R9 
+8!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:6) [4: ADD_I T8, IConst: 0, IConst: 1]
+	IN :
+	OUT:T8 
+13!main:([Ljava/lang/String;)V@FiboTest (FiboTest.java:9) [7: MOVE_I R11, R9]
+	IN :R9 
+	OUT:R11 R9 
+********** LEAVE Analysis Results **********
+

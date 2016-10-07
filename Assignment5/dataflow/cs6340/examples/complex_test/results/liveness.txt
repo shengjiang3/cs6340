@@ -1,0 +1,114 @@
+********** ENTER Analysis Results **********
+-76!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [76: PHI R28, (R22, R30), { BB8, BB10 }]
+	IN :R27 R2 R30 R31 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R27 R30 R2 R31 R28 R26 R3 R20 R22 R19 R32 R21 
+48!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:13) [70: IFCMP_I T25, IConst: 0, NE, BB12]
+	IN :R30 R2 R31 R28 T25 R3 R20 R22 R21 R19 R32 
+	OUT:R2 R30 R28 R31 R3 R20 R22 R32 R19 R21 
+68!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:15) [64: MOVE_L R30, T12]
+	IN :R27 T12 R2 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R27 R2 R30 R26 R3 R20 R22 R19 R32 R21 
+31!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:11) [51: MOVE_L R19, LConst: 0]
+	IN :R2 R30 R34 R31 R28 R33 R3 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R32 R19 
+60!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [59: IFCMP_I R27, T29, GE, BB11]
+	IN :R27 R30 R2 R20 R19 R32 R21 R31 R28 R26 R3 T29 R22 
+	OUT:R27 R30 R2 R31 R28 R26 R3 R20 R22 R19 R32 R21 
+38!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:12) [60: ARRAYLENGTH T23, R2]
+	IN :R2 R30 R31 R28 R3 R20 R22 R21 R19 R32 
+	OUT:R30 R2 R28 R31 T23 R3 R20 R22 R32 R19 R21 
+24!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:7) [49: ADD_I R18, R16, IConst: 1]
+	IN :R16 R2 R30 R34 R31 R28 R15 R33 R3 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R15 R18 R32 
+59!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [58: ALOAD_I T29, R2, R21]
+	IN :R27 R30 R2 R28 R31 R26 R3 R20 R22 R19 R32 R21 
+	OUT:R27 R2 R30 R20 R21 R32 R19 R31 R28 R26 R3 T29 R22 
+11!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:4) [4: MOVE_A R3, T14]
+	IN :R2 R30 R34 R31 R28 R18 R33 R32 T14 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R18 R32 
+23!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:8) [48: ASTORE_I R16, R2, R16]
+	IN :R16 R2 R30 R34 R31 R28 R15 R33 R3 R32 
+	OUT:R16 R30 R2 R28 R31 R34 R3 R33 R15 R32 
+45!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:13) [68: ALOAD_I T24, R2, R21]
+	IN :R30 R2 R31 R28 R3 R20 R22 R21 R19 R32 
+	OUT:R2 R30 R28 R31 R3 R20 R22 R32 R19 R21 T24 
+-79!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [79: PHI R27, (R26, R31), { BB8, BB10 }]
+	IN :R30 R2 R31 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R27 R2 R30 R31 R26 R3 R20 R22 R19 R32 R21 
+-74!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [74: PHI R16, (R15, R18), { BB2, BB4 }]
+	IN :R2 R30 R34 R31 R28 R18 R15 R33 R3 R32 
+	OUT:R16 R30 R2 R28 R31 R34 R3 R33 R15 R32 
+27!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:7) [50: GOTO BB3]
+	IN :R2 R30 R34 R31 R28 R18 R15 R33 R3 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R15 R18 R32 
+75!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [67: GOTO BB13]
+	IN :R2 R30 R28 R31 R3 R20 R32 R21 R19 
+	OUT:R30 R2 R31 R28 R3 R20 R19 R21 R32 
+84!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:21) [55: ASTORE_L R33, R3, R21]
+	IN :R2 R30 R31 R28 R33 R3 R20 R21 R19 R32 
+	OUT:R30 R2 R28 R31 R3 R33 R20 R32 R19 R21 
+17!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:7) [37: IFCMP_I R16, T17, GE, BB5]
+	IN :R16 R2 R30 R34 R31 R28 R15 R33 R3 R32 T17 
+	OUT:R16 R30 R2 R28 R31 R34 R3 R33 R15 R32 
+16!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:7) [36: ARRAYLENGTH T17, R2]
+	IN :R16 R2 R30 R34 R31 R28 R15 R33 R3 R32 
+	OUT:R16 R30 R2 R28 R31 R34 R3 R33 R15 R32 T17 
+67!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:15) [63: ADD_L T12, R28, T11]
+	IN :R27 R2 R28 T11 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R27 R2 T12 R26 R3 R20 R22 R19 R32 R21 
+-78!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [78: PHI R21, (R20, R34), { BB5, BB13 }]
+	IN :R2 R30 R34 R31 R28 R33 R3 R20 R19 R32 
+	OUT:R30 R2 R28 R31 R3 R33 R20 R32 R21 R19 
+69!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [65: ADD_I R31, R27, IConst: 1]
+	IN :R27 R30 R2 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R2 R30 R31 R26 R3 R20 R22 R19 R32 R21 
+39!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:12) [61: IFCMP_I R21, T23, GE, BB14]
+	IN :R2 R30 T23 R31 R28 R3 R20 R22 R21 R19 R32 
+	OUT:R30 R2 R28 R31 R3 R20 R22 R32 R19 R21 
+79!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:18) [73: MOVE_L R32, LConst: 0]
+	IN :R2 R30 R28 R31 R3 R20 R21 R19 
+	OUT:R30 R2 R31 R28 R3 R20 R19 R21 R32 
+91!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:24) [71: RETURN_V]
+	IN :
+	OUT:
+-75!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [75: PHI R22, (R19, R33), { BB5, BB13 }]
+	IN :R2 R30 R31 R28 R33 R3 R20 R21 R19 R32 
+	OUT:R30 R2 R28 R31 R3 R20 R22 R32 R19 R21 
+33!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:12) [52: MOVE_I R20, IConst: 0]
+	IN :R2 R30 R34 R31 R28 R33 R3 R19 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R20 R32 R19 
+3!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:3) [1: NEWARRAY T13, IConst: 10000, int[]]
+	IN :R30 R34 R31 R28 R18 R33 R32 
+	OUT:R30 R28 R31 R34 R33 R18 T13 R32 
+47!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:13) [69: REM_I T25, T24, IConst: 2]
+	IN :R30 R2 R31 R28 R3 R20 R22 R21 R19 R32 T24 
+	OUT:R2 R30 R28 R31 T25 R3 R20 R22 R32 R19 R21 
+-77!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:0) [77: PHI R33, (R28, R32), { BB11, BB12 }]
+	IN :R2 R30 R31 R28 R3 R20 R32 R21 R19 
+	OUT:R30 R2 R28 R31 R33 R3 R20 R32 R19 R21 
+85!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:12) [56: ADD_I R34, R21, IConst: 1]
+	IN :R2 R30 R31 R28 R33 R3 R20 R21 R19 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R20 R32 R19 
+88!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:12) [57: GOTO BB6]
+	IN :R2 R30 R34 R31 R28 R33 R3 R20 R19 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R20 R32 R19 
+52!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [72: MOVE_I R26, IConst: 0]
+	IN :R30 R2 R31 R3 R20 R22 R21 R32 R19 
+	OUT:R2 R30 R31 R26 R3 R20 R22 R19 R32 R21 
+72!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:14) [66: GOTO BB9]
+	IN :R30 R2 R31 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R2 R30 R31 R26 R3 R20 R22 R19 R32 R21 
+66!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:15) [62: INT_2LONG T11, R27]
+	IN :R27 R2 R28 R26 R3 R20 R22 R21 R32 R19 
+	OUT:R27 R2 R28 T11 R26 R3 R20 R22 R19 R32 R21 
+13!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:7) [5: MOVE_I R15, IConst: 0]
+	IN :R2 R30 R34 R31 R28 R18 R33 R3 R32 
+	OUT:R30 R2 R28 R31 R34 R3 R33 R15 R18 R32 
+5!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:3) [2: MOVE_A R2, T13]
+	IN :R30 R34 R31 R28 R18 R33 T13 R32 
+	OUT:R30 R2 R28 R31 R34 R33 R18 R32 
+9!main:([Ljava/lang/String;)V@ComplexTest (ComplexTest.java:4) [3: NEWARRAY T14, IConst: 10000, long[]]
+	IN :R2 R30 R34 R31 R28 R18 R33 R32 
+	OUT:R30 R2 R28 R31 R34 R33 R18 R32 T14 
+********** LEAVE Analysis Results **********
+
