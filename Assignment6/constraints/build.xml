@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="constraints" default="help">
+    <property name="chord.home.dir" location="."/>
+
+	<target name="help">
+		<echo message="Usage: ant -Dchord.work.dir=... [modref|escape]"/>
+	</target>
+
+    <target name="modref">
+		<property name="chord.run.analyses" value="modref-dlog"/>
+		<property name="chord.print.rels" value="refStatField,modStatField,refInstField,modInstField"/>
+		<antcall target="run"/>
+	</target>
+
+    <target name="escape">
+		<property name="chord.run.analyses" value="escape-dlog"/>
+		<property name="chord.print.rels" value="localMH"/>
+		<antcall target="run"/>
+	</target>
+
+    <target name="run">
+		<fail unless="chord.run.analyses" message="Property chord.run.analyses must be set"/>
+		<fail unless="chord.work.dir" message="Property chord.work.dir must be set"/>
+        <property name="chord.ext.dlog.analysis.path" location="src"/>
+	<property name="chord.scope.exclude" value="java.,javax.,com.,sun.,org.,sunw."/>
+        <java classname="chord.project.Boot" failonerror="true" classpath="${chord.home.dir}/chord.jar">
+            <syspropertyset>
+                <propertyref builtin="all"/>
+            </syspropertyset>
+        </java>
+	</target>
+</project>

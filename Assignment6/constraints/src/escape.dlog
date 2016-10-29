@@ -1,0 +1,34 @@
+# name=escape-dlog
+
+.include "M.dom"
+.include "H.dom"
+.include "F.dom"
+.include "V.dom"
+.include "Z.dom"
+
+.bddvarorder M0_V0xV1_H0_F0_H1_Z0
+
+###
+# Relations
+###
+
+# use only these input relations
+MmethArg(m:M0,n:Z0,v:V0) input
+MmethRet(m:M0,n:Z0,v:V1) input
+MH(m:M0,h:H0) input
+VH(v:V0,h:H0) input
+FH(f:F0,h:H0) input
+HFH(h:H0,f:F0,h2:H1) input
+reachableM(m:M0) input
+
+# TODO: declare any intermediate relations you might need
+
+# use only these output relations
+localMH(m:M0,h:H0) output
+
+###
+# Constraints
+###
+
+# TODO: write constraints to compute above output relation
+

@@ -1,0 +1,14 @@
+<main:([Ljava/lang/String;)V@TestCase2,a:Ljava/lang/Integer;@Foo>
+<main:([Ljava/lang/String;)V@TestCase2,b:Ljava/lang/Integer;@Foo>
+<main:([Ljava/lang/String;)V@TestCase2,c:Ljava/lang/Integer;@Foo>
+<main:([Ljava/lang/String;)V@TestCase2,d:Ljava/lang/Integer;@Foo>
+<m1:()V@Foo,a:Ljava/lang/Integer;@Foo>
+<m1:()V@Foo,b:Ljava/lang/Integer;@Foo>
+<m1:()V@Foo,c:Ljava/lang/Integer;@Foo>
+<m1:()V@Foo,d:Ljava/lang/Integer;@Foo>
+<m2:()V@Foo,b:Ljava/lang/Integer;@Foo>
+<m2:()V@Foo,c:Ljava/lang/Integer;@Foo>
+<m2:()V@Foo,d:Ljava/lang/Integer;@Foo>
+<m3:()V@Foo,c:Ljava/lang/Integer;@Foo>
+<m3:()V@Foo,d:Ljava/lang/Integer;@Foo>
+<m4:()V@Foo,d:Ljava/lang/Integer;@Foo>

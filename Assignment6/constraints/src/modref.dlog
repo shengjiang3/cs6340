@@ -1,0 +1,38 @@
+# name=modref-dlog
+
+.include "M.dom"
+.include "H.dom"
+.include "F.dom"
+.include "I.dom"
+.include "V.dom"
+
+.bddvarorder I0xM0_V0xV1_H0_F0_H1
+
+###
+# Relations
+###
+
+# use only these input relations
+MgetInstFldInst(m:M0,l:V0,b:V1,f:F0) input
+MputInstFldInst(m:M0,b:V0,f:F0,r:V1) input
+MgetStatFldInst(m:M0,l:V0,f:F0) input
+MputStatFldInst(m:M0,f:F0,r:V0) input
+VH(v:V0,h:H0) input
+MI(m:M0,i:I0) input
+IM(i:I0,m:M0) input
+reachableM(m:M0) input
+
+# TODO: declare any intermediate relations you might need
+
+# use only these output relations
+refStatField(m:M0,f:F0) output
+modStatField(m:M0,f:F0) output
+refInstField(m:M0,h:H0,f:F0) output
+modInstField(m:M0,h:H0,f:F0) output
+
+###
+# Constraints
+###
+
+# TODO: write constraints to compute above output relations
+
