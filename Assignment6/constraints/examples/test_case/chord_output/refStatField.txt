@@ -1,0 +1,2 @@
+<main:([Ljava/lang/String;)V@TestCase,isEuclidean:Ljava/lang/Integer;@Point>
+<distance:(LPoint;)Ljava/lang/Float;@Point,isEuclidean:Ljava/lang/Integer;@Point>

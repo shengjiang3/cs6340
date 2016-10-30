@@ -1,0 +1,26 @@
+#!/bin/bash
+if (( $# < 2 )); then
+  echo "usage: $0 modref|escape TESTCASE"
+  exit 1
+fi
+test ! -d "examples/$2" && echo "unknown example $2">&2 && exit 1
+case "$1" in
+  modref)
+    echo "[+] Note: < is from reference but not yours, > is in yours but not reference"
+    echo "[+] modInstField"
+    diff sample_output/$2/modInstField.txt examples/$2/chord_output/modInstField.txt
+    echo "[+] refInstField"
+    diff sample_output/$2/refInstField.txt examples/$2/chord_output/refInstField.txt
+    echo "[+] refStatField"
+    diff sample_output/$2/refStatField.txt examples/$2/chord_output/refStatField.txt
+    echo "[+] modStatField"
+    diff sample_output/$2/modStatField.txt examples/$2/chord_output/modStatField.txt
+    ;;
+  escape)
+    echo "[+] Note: < is from reference but not yours, > is in yours but not reference"
+    echo "[+] localMH"
+    diff sample_output/$2/localMH.txt examples/$2/chord_output/localMH.txt
+    ;;
+  *) echo "unknown analysis $1" >&2
+    ;;
+esac

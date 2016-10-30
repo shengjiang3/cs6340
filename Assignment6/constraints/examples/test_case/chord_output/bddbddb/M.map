@@ -1,0 +1,14 @@
+main:([Ljava/lang/String;)V@TestCase
+<clinit>:()V@Point
+<init>:()V@Point
+clone:(LPoint;)V@Point
+distance:(LPoint;)Ljava/lang/Float;@Point
+<clinit>:()V@java.lang.Float
+<init>:(F)V@java.lang.Float
+floatValue:()F@java.lang.Float
+<clinit>:()V@java.lang.Integer
+<init>:(I)V@java.lang.Integer
+intValue:()I@java.lang.Integer
+valueOf:(I)Ljava/lang/Integer;@java.lang.Integer
+<clinit>:()V@java.lang.Object
+<init>:()V@java.lang.Object
