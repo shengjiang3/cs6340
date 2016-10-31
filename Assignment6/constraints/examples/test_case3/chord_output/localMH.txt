@@ -1,0 +1,7 @@
+<main:([Ljava/lang/String;)V@TestCase3,0!main:([Ljava/lang/String;)V@TestCase3>
+<main:([Ljava/lang/String;)V@TestCase3,8!main:([Ljava/lang/String;)V@TestCase3>
+<main:([Ljava/lang/String;)V@TestCase3,28!main:([Ljava/lang/String;)V@TestCase3>
+<main:([Ljava/lang/String;)V@TestCase3,42!main:([Ljava/lang/String;)V@TestCase3>
+<clone:(LCoordinate;)V@Coordinate,30!clone:(LCoordinate;)V@Coordinate>
+<clone:(LCoordinate;)V@Coordinate,48!clone:(LCoordinate;)V@Coordinate>
+<returnsOneObjectReference:()LCoordinate;@Coordinate,9!returnsOneObjectReference:()LCoordinate;@Coordinate>

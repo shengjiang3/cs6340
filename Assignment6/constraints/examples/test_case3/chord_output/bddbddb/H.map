@@ -1,0 +1,17 @@
+null
+0!main:([Ljava/lang/String;)V@TestCase3
+8!main:([Ljava/lang/String;)V@TestCase3
+28!main:([Ljava/lang/String;)V@TestCase3
+42!main:([Ljava/lang/String;)V@TestCase3
+0!<clinit>:()V@Coordinate
+0!clone:(LCoordinate;)V@Coordinate
+15!clone:(LCoordinate;)V@Coordinate
+30!clone:(LCoordinate;)V@Coordinate
+48!clone:(LCoordinate;)V@Coordinate
+139!distance:(LCoordinate;)Ljava/lang/Float;@Coordinate
+185!distance:(LCoordinate;)Ljava/lang/Float;@Coordinate
+18!distance:(LCoordinate;)Ljava/lang/Float;@Coordinate
+96!distance:(LCoordinate;)Ljava/lang/Float;@Coordinate
+0!returnsOneObjectReference:()LCoordinate;@Coordinate
+9!returnsOneObjectReference:()LCoordinate;@Coordinate
+18!returnsOneObjectReference:()LCoordinate;@Coordinate

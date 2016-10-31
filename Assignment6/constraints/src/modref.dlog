@@ -37,14 +37,14 @@ modInstField(m:M0,h:H0,f:F0) output
 # TODO: write constraints to compute above output relations
 
 refStatField(m,f) :- reachableM(m), MgetStatFldInst(m,_,f).
-refStatField(m,f) :- IM(i,n), MI(m,i), refStatField(n,f).
+refStatField(m,f) :- MI(m,i), IM(i,n), refStatField(n,f).
 
 modStatField(m,f) :- reachableM(m), MputStatFldInst(m,f,_).
-modStatField(m,f) :- IM(i,n), MI(m,i), modStatField(n,f).
+modStatField(m,f) :- MI(m,i), IM(i,n), modStatField(n,f).
 
 refInstField(m,h,f) :- reachableM(m), MgetInstFldInst(m,_,b,f), VH(b,h).
-refInstField(m,h,f) :- IM(i,n), MI(m,i), refInstField(n,h,f).
+refInstField(m,h,f) :- MI(m,i), IM(i,n), refInstField(n,h,f).
 
 modInstField(m,h,f) :- reachableM(m), MputInstFldInst(m,b,f,_), VH(b,h).
-modInstField(m,h,f) :- IM(i,n), MI(m,i), modInstField(n,h,f).
+modInstField(m,h,f) :- MI(m,i), IM(i,n), modInstField(n,h,f).
 

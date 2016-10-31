@@ -22,6 +22,7 @@ HFH(h:H0,f:F0,h2:H1) input
 reachableM(m:M0) input
 
 # TODO: declare any intermediate relations you might need
+escapeMH(m:M0,h:H0)
 
 # use only these output relations
 localMH(m:M0,h:H0) output
@@ -32,6 +33,11 @@ localMH(m:M0,h:H0) output
 
 # TODO: write constraints to compute above output relation
 
-localMH(m,h) :- reachableM(m), MH(m,h), !FH(_,h), VH(v,h), !MmethRet(m,_,v), !MmethArg(m,_,v).
-localMH(m,h) :- MH(m,h), FH(f,h), HFH(h,f,g), localMH(m,g).
+escapeMH(m,h) :- reachableM(m), MH(m,h), FH(_,h).
+escapeMH(m,h) :- reachableM(m), MH(m,h), VH(_,h), HFH(g,_,h), VH(_,g), !MH(m,g).
+escapeMH(m,h) :- reachableM(m), MH(m,h), VH(v,h), MmethRet(m,_,v).
+escapeMH(m,h) :- reachableM(m), MH(m,h), VH(v,h), MmethArg(m,_,v).
+escapeMH(m,h) :- MH(m,h), VH(_,h), HFH(g,_,h), escapeMH(_,g).
+
+localMH(m,h) :- reachableM(m), MH(m,h), !escapeMH(m,h).
 

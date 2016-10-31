@@ -1,0 +1,15 @@
+<clinit>:()V@java.lang.Object
+main:([Ljava/lang/String;)V@TestCase2
+<clinit>:()V@Foo
+<init>:()V@Foo
+m1:()V@Foo
+<clinit>:()V@java.lang.Integer
+valueOf:(I)Ljava/lang/Integer;@java.lang.Integer
+<init>:(I)V@java.lang.Integer
+<init>:()V@ComplexEscaping
+testEscaping:(Ljava/lang/Integer;LComplexEscaping;LComplexEscaping;)Ljava/lang/Integer;@Foo
+transitiveEscaping:()Ljava/lang/Integer;@Foo
+<init>:()V@java.lang.Object
+m2:()V@Foo
+m3:()V@Foo
+m4:()V@Foo

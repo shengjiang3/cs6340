@@ -1,0 +1,216 @@
+Chord run initiated at: Oct 30, 2016 10:23:05 PM
+OPT config = data.config
+ENTER: escape-dlog at Sun Oct 30 22:23:07 EDT 2016
+ENTER: F at Sun Oct 30 22:23:07 EDT 2016
+ENTER: RTA
+Iteration: 0
+Iteration: 1
+LEAVE: RTA
+Time: 00:00:00:220 hh:mm:ss:ms
+SAVING dom F size: 28
+LEAVE: F
+Exclusive time: 00:00:00:228 hh:mm:ss:ms
+Inclusive time: 00:00:00:228 hh:mm:ss:ms
+ENTER: V at Sun Oct 30 22:23:07 EDT 2016
+ENTER: M at Sun Oct 30 22:23:07 EDT 2016
+SAVING dom M size: 15
+LEAVE: M
+Exclusive time: 00:00:00:001 hh:mm:ss:ms
+Inclusive time: 00:00:00:001 hh:mm:ss:ms
+SAVING dom V size: 99
+LEAVE: V
+Exclusive time: 00:00:00:002 hh:mm:ss:ms
+Inclusive time: 00:00:00:003 hh:mm:ss:ms
+ENTER: H at Sun Oct 30 22:23:07 EDT 2016
+SAVING dom H size: 17
+LEAVE: H
+Exclusive time: 00:00:00:001 hh:mm:ss:ms
+Inclusive time: 00:00:00:001 hh:mm:ss:ms
+ENTER: Z at Sun Oct 30 22:23:07 EDT 2016
+SAVING dom Z size: 2
+LEAVE: Z
+Exclusive time: 00:00:00:001 hh:mm:ss:ms
+Inclusive time: 00:00:00:001 hh:mm:ss:ms
+ENTER: MmethArg at Sun Oct 30 22:23:07 EDT 2016
+SAVING rel MmethArg size: 13
+LEAVE: MmethArg
+Exclusive time: 00:00:00:133 hh:mm:ss:ms
+Inclusive time: 00:00:00:133 hh:mm:ss:ms
+ENTER: MH at Sun Oct 30 22:23:07 EDT 2016
+SAVING rel MH size: 16
+LEAVE: MH
+Exclusive time: 00:00:00:045 hh:mm:ss:ms
+Inclusive time: 00:00:00:045 hh:mm:ss:ms
+ENTER: cipa-0cfa-dlog at Sun Oct 30 22:23:07 EDT 2016
+ENTER: T at Sun Oct 30 22:23:07 EDT 2016
+SAVING dom T size: 91
+LEAVE: T
+Exclusive time: 00:00:00:001 hh:mm:ss:ms
+Inclusive time: 00:00:00:001 hh:mm:ss:ms
+ENTER: I at Sun Oct 30 22:23:07 EDT 2016
+SAVING dom I size: 51
+LEAVE: I
+Exclusive time: 00:00:00:001 hh:mm:ss:ms
+Inclusive time: 00:00:00:001 hh:mm:ss:ms
+ENTER: VT at Sun Oct 30 22:23:07 EDT 2016
+SAVING rel VT size: 99
+LEAVE: VT
+Exclusive time: 00:00:00:054 hh:mm:ss:ms
+Inclusive time: 00:00:00:054 hh:mm:ss:ms
+ENTER: virtIM at Sun Oct 30 22:23:07 EDT 2016
+SAVING rel virtIM size: 32
+LEAVE: virtIM
+Exclusive time: 00:00:00:032 hh:mm:ss:ms
+Inclusive time: 00:00:00:032 hh:mm:ss:ms
+ENTER: sub at Sun Oct 30 22:23:07 EDT 2016
+SAVING rel sub size: 30
+LEAVE: sub
+Exclusive time: 00:00:00:031 hh:mm:ss:ms
+Inclusive time: 00:00:00:031 hh:mm:ss:ms
+ENTER: IinvkRet at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel IinvkRet size: 3
+LEAVE: IinvkRet
+Exclusive time: 00:00:00:023 hh:mm:ss:ms
+Inclusive time: 00:00:00:023 hh:mm:ss:ms
+ENTER: objNewInst-java at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel objNewInstIH size: 0
+SAVING rel objNewInstIM size: 0
+LEAVE: objNewInst-java
+Exclusive time: 00:00:00:038 hh:mm:ss:ms
+Inclusive time: 00:00:00:038 hh:mm:ss:ms
+ENTER: aryNewInstIH at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel aryNewInstIH size: 0
+LEAVE: aryNewInstIH
+Exclusive time: 00:00:00:029 hh:mm:ss:ms
+Inclusive time: 00:00:00:029 hh:mm:ss:ms
+ENTER: staticTM at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel staticTM size: 6
+LEAVE: staticTM
+Exclusive time: 00:00:00:027 hh:mm:ss:ms
+Inclusive time: 00:00:00:027 hh:mm:ss:ms
+ENTER: staticTF at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel staticTF size: 23
+LEAVE: staticTF
+Exclusive time: 00:00:00:044 hh:mm:ss:ms
+Inclusive time: 00:00:00:044 hh:mm:ss:ms
+ENTER: MgetStatFldInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MgetStatFldInst size: 2
+LEAVE: MgetStatFldInst
+Exclusive time: 00:00:00:021 hh:mm:ss:ms
+Inclusive time: 00:00:00:021 hh:mm:ss:ms
+ENTER: cha at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel cha size: 5
+LEAVE: cha
+Exclusive time: 00:00:00:022 hh:mm:ss:ms
+Inclusive time: 00:00:00:022 hh:mm:ss:ms
+ENTER: HT at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel HT size: 16
+LEAVE: HT
+Exclusive time: 00:00:00:023 hh:mm:ss:ms
+Inclusive time: 00:00:00:023 hh:mm:ss:ms
+ENTER: MgetInstFldInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MgetInstFldInst size: 28
+LEAVE: MgetInstFldInst
+Exclusive time: 00:00:00:026 hh:mm:ss:ms
+Inclusive time: 00:00:00:026 hh:mm:ss:ms
+ENTER: specIM at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel specIM size: 18
+LEAVE: specIM
+Exclusive time: 00:00:00:022 hh:mm:ss:ms
+Inclusive time: 00:00:00:022 hh:mm:ss:ms
+ENTER: classT at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel classT size: 6
+LEAVE: classT
+Exclusive time: 00:00:00:021 hh:mm:ss:ms
+Inclusive time: 00:00:00:021 hh:mm:ss:ms
+ENTER: MI at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MI size: 51
+LEAVE: MI
+Exclusive time: 00:00:00:024 hh:mm:ss:ms
+Inclusive time: 00:00:00:024 hh:mm:ss:ms
+ENTER: MobjValAsgnInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MobjValAsgnInst size: 16
+LEAVE: MobjValAsgnInst
+Exclusive time: 00:00:00:029 hh:mm:ss:ms
+Inclusive time: 00:00:00:029 hh:mm:ss:ms
+ENTER: clinitTM at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel clinitTM size: 4
+LEAVE: clinitTM
+Exclusive time: 00:00:00:019 hh:mm:ss:ms
+Inclusive time: 00:00:00:019 hh:mm:ss:ms
+ENTER: MobjVarAsgnInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MobjVarAsgnInst size: 36
+LEAVE: MobjVarAsgnInst
+Exclusive time: 00:00:00:026 hh:mm:ss:ms
+Inclusive time: 00:00:00:026 hh:mm:ss:ms
+ENTER: conNewInst-java at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel conNewInstIH size: 0
+SAVING rel conNewInstIM size: 0
+LEAVE: conNewInst-java
+Exclusive time: 00:00:00:035 hh:mm:ss:ms
+Inclusive time: 00:00:00:035 hh:mm:ss:ms
+ENTER: IinvkArg0 at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel IinvkArg0 size: 50
+LEAVE: IinvkArg0
+Exclusive time: 00:00:00:024 hh:mm:ss:ms
+Inclusive time: 00:00:00:024 hh:mm:ss:ms
+ENTER: IinvkArg at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel IinvkArg size: 53
+LEAVE: IinvkArg
+Exclusive time: 00:00:00:034 hh:mm:ss:ms
+Inclusive time: 00:00:00:034 hh:mm:ss:ms
+ENTER: MmethRet at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MmethRet size: 2
+LEAVE: MmethRet
+Exclusive time: 00:00:00:025 hh:mm:ss:ms
+Inclusive time: 00:00:00:025 hh:mm:ss:ms
+ENTER: clsForNameIT at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel clsForNameIT size: 0
+LEAVE: clsForNameIT
+Exclusive time: 00:00:00:028 hh:mm:ss:ms
+Inclusive time: 00:00:00:028 hh:mm:ss:ms
+ENTER: MputInstFldInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MputInstFldInst size: 9
+LEAVE: MputInstFldInst
+Exclusive time: 00:00:00:030 hh:mm:ss:ms
+Inclusive time: 00:00:00:030 hh:mm:ss:ms
+ENTER: MputStatFldInst at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel MputStatFldInst size: 1
+LEAVE: MputStatFldInst
+Exclusive time: 00:00:00:029 hh:mm:ss:ms
+Inclusive time: 00:00:00:029 hh:mm:ss:ms
+ENTER: statIM at Sun Oct 30 22:23:08 EDT 2016
+SAVING rel statIM size: 1
+LEAVE: statIM
+Exclusive time: 00:00:00:026 hh:mm:ss:ms
+Inclusive time: 00:00:00:026 hh:mm:ss:ms
+Starting command: 'java -ea -Xmx1024m -cp /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/chord.jar: -Dverbose=1 -Dbdd=j -Dbasedir=/Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/bddbddb net.sf.bddbddb.Solver /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/dlog/chord_analyses_alias_cipa_0cfa.dlog '
+Relation IHM: 67 nodes, 348.0 elements (M0,I0,H0)
+Relation reachableT: 14 nodes, 6.0 elements (T0)
+Relation VHfilter: 55 nodes, 1072.0 elements (V0,H0)
+Relation VH: 149 nodes, 127.0 elements (V0,H0)
+Relation FH: 10 nodes, 1.0 elements (H0,F0)
+Relation HFH: 51 nodes, 9.0 elements (H0,F0,H1)
+Relation rootM: 9 nodes, 5.0 elements (M0)
+Relation reachableI: 6 nodes, 51.0 elements (I0)
+Relation reachableM: 3 nodes, 14.0 elements (M0)
+Relation IM: 74 nodes, 50.0 elements (M0,I0)
+Relation MM: 27 nodes, 15.0 elements (M0,M1)
+DLOG LOAD TIME: 0 seconds
+DLOG RUN TIME: 0 seconds
+DLOG SAVE TIME: 0 seconds
+Finished command: 'java -ea -Xmx1024m -cp /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/chord.jar: -Dverbose=1 -Dbdd=j -Dbasedir=/Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/bddbddb net.sf.bddbddb.Solver /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/dlog/chord_analyses_alias_cipa_0cfa.dlog '
+LEAVE: cipa-0cfa-dlog
+Exclusive time: 00:00:00:542 hh:mm:ss:ms
+Inclusive time: 00:00:01:288 hh:mm:ss:ms
+Starting command: 'java -ea -Xmx1024m -cp /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/chord.jar: -Dverbose=1 -Dbdd=j -Dbasedir=/Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/bddbddb net.sf.bddbddb.Solver /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/src/escape.dlog '
+Relation localMH: 22 nodes, 7.0 elements (M0,H0)
+DLOG LOAD TIME: 0 seconds
+DLOG RUN TIME: 0 seconds
+DLOG SAVE TIME: 0 seconds
+Finished command: 'java -ea -Xmx1024m -cp /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/chord.jar: -Dverbose=1 -Dbdd=j -Dbasedir=/Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/examples/test_case3/chord_output/bddbddb net.sf.bddbddb.Solver /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment6/constraints/src/escape.dlog '
+LEAVE: escape-dlog
+Exclusive time: 00:00:00:323 hh:mm:ss:ms
+Inclusive time: 00:00:02:023 hh:mm:ss:ms
+Chord run completed at: Oct 30, 2016 10:23:09 PM
+Total time: 00:00:03:673 hh:mm:ss:ms

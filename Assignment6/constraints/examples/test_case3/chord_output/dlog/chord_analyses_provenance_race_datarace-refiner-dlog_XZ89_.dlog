@@ -1,0 +1,148 @@
+# name=datarace-refiner-dlog_XZ89_
+.include "M.dom"
+.include "V.dom"
+.include "C.dom"
+.include "P.dom"
+.include "Z.dom"
+.include "F.dom"
+.include "E.dom"
+.include "T.dom"
+.include "H.dom"
+.include "AS.dom"
+.include "I.dom"
+.include "L.dom"
+.include "K.dom"
+.bddvarorder E0xE1_M0xP0xP1xP2_V0_C0_F0_C1xC2_Z0_T0_H0_H1_AS0xAS1xAS2xAS3xAS4_I0_L0_K0
+
+
+#Input relations
+CVC(c1:C0,v:V0,c2:C1) input
+FC(f:F0,c:C0) input
+CFC(c1:C0,f:F0,c2:C1) input
+MmethArg(m:M0,z:Z0,v:V0) input
+EV(e:E0,v:V0) input
+escE(e:E0) input
+PP(p:P0,q:P1) input
+MPhead(m:M0,p:P0) input
+MPtail(m:M0,p:P0) input
+PI(p:P0,i:I0) input
+CICM(c1:C0,i:I0,c2:C1,m:M0) input
+threadACM(t:AS0,c:C0,m:M0) input
+threadStartI(i:I0) input
+threadCICM(c:C0,i:I0,c:C1,m:M0) input
+PE(p:P0,e:E0) input
+unlockedRaceHext(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) input
+EF(e:E0,f:F0) input
+statF(f:F0) input
+excludeSameThread(k:K0) input
+
+#Output relations
+datarace(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+escapingRaceHext(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+parallelRaceHext(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+racePairs_cs(e1:E0,e2:E1) output
+escO(o:C0) output
+CEC(c:C0,e:E0,o:C1) output
+threadACH(t:AS0,c:C0,h:P0) output
+threadAC(t:AS0,c:C0) output
+threadPH_cs(caller:C0,p1:P0,callee:C1,p2:P1) output
+threadPM_cs(caller:C0,p1:P0,callee:C1) output
+simplePH_cs(caller:C0,p1:P0,callee:C1,p2:P1) output
+simplePM_cs(caller:C0,p1:P0,callee:C1,m2:M0) output
+PathEdge_cs(c:C0,p:P0,this:AS0,sThat:AS1,tThat:AS2) output
+simplePT_cs(caller:C0,p1:P0,callee:C1,p2:P1) output
+mhp_cs(c:C0,p:P0,t1:AS0,t2:AS1) output
+SummEdge_cs(c:C0,p:P0,this:AS0,sThat:AS1,tThat:AS2) output
+mhe_cs(c:C0,e:E0,t1:AS0,t2:AS1) output
+statE(e:E0) output
+
+#Instrumented relations
+datarace_XZ89_27_37(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+racePairs_cs_XZ89_28_37(e1:E0,e2:E1,v_XZ89_0:AS0,v_XZ89_1:C0,v_XZ89_2:AS1,v_XZ89_3:C1) output
+escapingRaceHext_XZ89_23_37(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1,o:C2) output
+escapingRaceHext_XZ89_24_37(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+parallelRaceHext_XZ89_25_37(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+datarace_XZ89_26_37(t1:AS0,c1:C0,e1:E0,t2:AS1,c2:C1,e2:E1) output
+escO_XZ89_0_37(o:C0,v_XZ89_0:F0) output
+escO_XZ89_1_37(o:C0,v:V0,v_XZ89_0:C1) output
+simplePM_cs_XZ89_4_37(c:C0,p:P0,d:C1,m:M0,i:I0) output
+simplePH_cs_XZ89_5_37(c:C0,p:P0,d:C1,h:P1,m:M0) output
+escO_XZ89_2_37(o2:C0,o1:C1,v_XZ89_0:F0) output
+CEC_XZ89_3_37(c:C0,e:E0,o:C1,v:V0) output
+threadAC_XZ89_9_37(t:AS0,c:C0,m:M0) output
+threadPH_cs_XZ89_8_37(c:C0,p:P0,d:C1,h:P1,i:I0,m:M0) output
+threadPM_cs_XZ89_7_37(c:C0,p:P0,d:C1,i:I0,v_XZ89_0:M0) output
+simplePT_cs_XZ89_6_37(c:C0,p:P0,d:C1,t:P1,m:M0) output
+SummEdge_cs_XZ89_14_37(c:C0,p:P0,t:AS0,t1:AS1,t2:AS2,d:C1,q:P1) output
+PathEdge_cs_XZ89_13_37(d:C0,q:P0,t:AS0,t1:AS1,t2:AS2,c:C1,p:P1,v_XZ89_0:AS3) output
+PathEdge_cs_XZ89_12_37(c:C0,q:P0,t:AS0,t1:AS1,t2:AS2,p:P1) output
+threadACH_XZ89_10_37(t:AS0,c:C0,h:P0,m:M0) output
+PathEdge_cs_XZ89_18_37(d:C0,h:P0,x:AS0,y:AS1,z:AS2,c:C1,p:P1,v_XZ89_0:AS3,v_XZ89_1:AS4) output
+PathEdge_cs_XZ89_17_37(d:C0,h:P0,x:AS0,y:AS1,z:AS2,c:C1,p:P1,v_XZ89_0:AS3,v_XZ89_1:AS4) output
+PathEdge_cs_XZ89_16_37(c:C0,r:P0,t:AS0,t1:AS1,t2:AS2,p:P1,d:C1,v_XZ89_0:AS3) output
+PathEdge_cs_XZ89_15_37(c:C0,r:P0,t:AS0,t1:AS1,t3:AS2,p:P1,t2:AS3) output
+statE_XZ89_22_37(e:E0,f:F0) output
+mhe_cs_XZ89_21_37(c:C0,e:E0,t1:AS0,t2:AS1,p:P0) output
+mhp_cs_XZ89_20_37(c:C0,p:P0,t1:AS0,t2:AS1,v_XZ89_0:AS2) output
+PathEdge_cs_XZ89_19_37(e:C0,h1:P0,x:AS0,y:AS1,z:AS2,c:C1,p:P1,d:C2,v_XZ89_0:AS3,v_XZ89_1:AS4) output
+
+#Original rules
+escO(o) :- FC(_,o).
+escO(o) :- MmethArg(1,0,v), CVC(_,v,o).
+escO(o2) :- CFC(o1,_,o2), escO(o1).
+CEC(c,e,o) :- CVC(c,v,o), EV(e,v), escO(o), escE(e).
+simplePM_cs(c,p,d,m) :- CICM(c,i,d,m), PI(p,i), !threadStartI(i).
+simplePH_cs(c,p,d,h) :- simplePM_cs(c,p,d,m), MPhead(m,h).
+simplePT_cs(c,p,d,t) :- simplePM_cs(c,p,d,m), MPtail(m,t).
+threadPM_cs(c,p,d) :- threadCICM(c,i,d,_), PI(p,i).
+threadPH_cs(c,p,d,h) :- threadCICM(c,i,d,m), PI(p,i), MPhead(m,h).
+threadAC(t,c) :- threadACM(t,c,m), m!=0.
+threadACH(t,c,h) :- threadACM(t,c,m), m!=0, MPhead(m,h).
+PathEdge_cs(0,0,1,0,0).
+PathEdge_cs(c,q,t,t1,t2) :- PathEdge_cs(c,p,t,t1,t2), PP(p,q).
+PathEdge_cs(d,q,t,t1,t2) :- simplePH_cs(c,p,d,q), PathEdge_cs(c,p,t,_,t2), t1=t2.
+SummEdge_cs(c,p,t,t1,t2) :- simplePT_cs(c,p,d,q), PathEdge_cs(d,q,t,t1,t2).
+PathEdge_cs(c,r,t,t1,t3) :- SummEdge_cs(c,p,t,t2,t3), PathEdge_cs(c,p,t,t1,t2), PP(p,r).
+PathEdge_cs(c,r,t,t1,t2) :- threadPM_cs(c,p,d), PathEdge_cs(c,p,t,t1,_), PP(p,r), threadAC(t2,d).
+PathEdge_cs(d,h,x,y,z) :- threadPH_cs(c,p,d,h), PathEdge_cs(c,p,y,_,_), threadAC(x,d), z=y.
+PathEdge_cs(d,h,x,y,z) :- threadPH_cs(c,p,d,h), PathEdge_cs(c,p,_,_,y), threadAC(x,d), z=y.
+PathEdge_cs(e,h1,x,y,z) :- threadPM_cs(c,p,d), PathEdge_cs(c,p,_,_,x), threadACH(x,e,h1), threadAC(y,d), z=y.
+mhp_cs(c,p,t1,t2) :- PathEdge_cs(c,p,t1,_,t2), t1!=0, t2!=0.
+mhe_cs(c,e,t1,t2) :- mhp_cs(c,p,t1,t2), PE(p,e).
+statE(e) :- EF(e,f), statF(f).
+escapingRaceHext(t1,c1,e1,t2,c2,e2) :- unlockedRaceHext(t1,c1,e1,t2,c2,e2), CEC(c1,e1,o), CEC(c2,e2,o).
+escapingRaceHext(t1,c1,e1,t2,c2,e2) :- unlockedRaceHext(t1,c1,e1,t2,c2,e2), statE(e1), statE(e2).
+parallelRaceHext(t1,c1,e1,t2,c2,e2) :- escapingRaceHext(t1,c1,e1,t2,c2,e2), mhe_cs(c1,e1,t1,t2), mhe_cs(c2,e2,t2,t1).
+datarace(t1,c1,e1,t2,c2,e2) :- parallelRaceHext(t1,c1,e1,t2,c2,e2), excludeSameThread(1), t1!=t2.
+datarace(t1,c1,e1,t2,c2,e2) :- parallelRaceHext(t1,c1,e1,t2,c2,e2), excludeSameThread(0).
+racePairs_cs(e1,e2) :- datarace(_,_,e1,_,_,e2).
+
+#Instrumented rules
+escO_XZ89_0_37(o,v_XZ89_0) :- FC(v_XZ89_0,o).
+escO_XZ89_1_37(o,v,v_XZ89_0) :- MmethArg(1,0,v), CVC(v_XZ89_0,v,o).
+escO_XZ89_2_37(o2,o1,v_XZ89_0) :- CFC(o1,v_XZ89_0,o2), escO(o1).
+CEC_XZ89_3_37(c,e,o,v) :- CVC(c,v,o), EV(e,v), escO(o), escE(e).
+simplePM_cs_XZ89_4_37(c,p,d,m,i) :- CICM(c,i,d,m), PI(p,i), !threadStartI(i).
+simplePH_cs_XZ89_5_37(c,p,d,h,m) :- simplePM_cs(c,p,d,m), MPhead(m,h).
+simplePT_cs_XZ89_6_37(c,p,d,t,m) :- simplePM_cs(c,p,d,m), MPtail(m,t).
+threadPM_cs_XZ89_7_37(c,p,d,i,v_XZ89_0) :- threadCICM(c,i,d,v_XZ89_0), PI(p,i).
+threadPH_cs_XZ89_8_37(c,p,d,h,i,m) :- threadCICM(c,i,d,m), PI(p,i), MPhead(m,h).
+threadAC_XZ89_9_37(t,c,m) :- threadACM(t,c,m), m!=0.
+threadACH_XZ89_10_37(t,c,h,m) :- threadACM(t,c,m), m!=0, MPhead(m,h).
+PathEdge_cs_XZ89_12_37(c,q,t,t1,t2,p) :- PathEdge_cs(c,p,t,t1,t2), PP(p,q).
+PathEdge_cs_XZ89_13_37(d,q,t,t1,t2,c,p,v_XZ89_0) :- simplePH_cs(c,p,d,q), PathEdge_cs(c,p,t,v_XZ89_0,t2), t1=t2.
+SummEdge_cs_XZ89_14_37(c,p,t,t1,t2,d,q) :- simplePT_cs(c,p,d,q), PathEdge_cs(d,q,t,t1,t2).
+PathEdge_cs_XZ89_15_37(c,r,t,t1,t3,p,t2) :- SummEdge_cs(c,p,t,t2,t3), PathEdge_cs(c,p,t,t1,t2), PP(p,r).
+PathEdge_cs_XZ89_16_37(c,r,t,t1,t2,p,d,v_XZ89_0) :- threadPM_cs(c,p,d), PathEdge_cs(c,p,t,t1,v_XZ89_0), PP(p,r), threadAC(t2,d).
+PathEdge_cs_XZ89_17_37(d,h,x,y,z,c,p,v_XZ89_0,v_XZ89_1) :- threadPH_cs(c,p,d,h), PathEdge_cs(c,p,y,v_XZ89_0,v_XZ89_1), threadAC(x,d), z=y.
+PathEdge_cs_XZ89_18_37(d,h,x,y,z,c,p,v_XZ89_0,v_XZ89_1) :- threadPH_cs(c,p,d,h), PathEdge_cs(c,p,v_XZ89_0,v_XZ89_1,y), threadAC(x,d), z=y.
+PathEdge_cs_XZ89_19_37(e,h1,x,y,z,c,p,d,v_XZ89_0,v_XZ89_1) :- threadPM_cs(c,p,d), PathEdge_cs(c,p,v_XZ89_0,v_XZ89_1,x), threadACH(x,e,h1), threadAC(y,d), z=y.
+mhp_cs_XZ89_20_37(c,p,t1,t2,v_XZ89_0) :- PathEdge_cs(c,p,t1,v_XZ89_0,t2), t1!=0, t2!=0.
+mhe_cs_XZ89_21_37(c,e,t1,t2,p) :- mhp_cs(c,p,t1,t2), PE(p,e).
+statE_XZ89_22_37(e,f) :- EF(e,f), statF(f).
+escapingRaceHext_XZ89_23_37(t1,c1,e1,t2,c2,e2,o) :- unlockedRaceHext(t1,c1,e1,t2,c2,e2), CEC(c1,e1,o), CEC(c2,e2,o).
+escapingRaceHext_XZ89_24_37(t1,c1,e1,t2,c2,e2) :- unlockedRaceHext(t1,c1,e1,t2,c2,e2), statE(e1), statE(e2).
+parallelRaceHext_XZ89_25_37(t1,c1,e1,t2,c2,e2) :- escapingRaceHext(t1,c1,e1,t2,c2,e2), mhe_cs(c1,e1,t1,t2), mhe_cs(c2,e2,t2,t1).
+datarace_XZ89_26_37(t1,c1,e1,t2,c2,e2) :- parallelRaceHext(t1,c1,e1,t2,c2,e2), excludeSameThread(1), t1!=t2.
+datarace_XZ89_27_37(t1,c1,e1,t2,c2,e2) :- parallelRaceHext(t1,c1,e1,t2,c2,e2), excludeSameThread(0).
+racePairs_cs_XZ89_28_37(e1,e2,v_XZ89_0,v_XZ89_1,v_XZ89_2,v_XZ89_3) :- datarace(v_XZ89_0,v_XZ89_1,e1,v_XZ89_2,v_XZ89_3,e2).

@@ -1,0 +1,15 @@
+main:([Ljava/lang/String;)V@TestCase3
+<clinit>:()V@Coordinate
+<init>:()V@Coordinate
+<init>:(Ljava/lang/Float;)V@Coordinate
+clone:(LCoordinate;)V@Coordinate
+distance:(LCoordinate;)Ljava/lang/Float;@Coordinate
+returnsOneObjectReference:()LCoordinate;@Coordinate
+<clinit>:()V@java.lang.Float
+<init>:(F)V@java.lang.Float
+floatValue:()F@java.lang.Float
+<clinit>:()V@java.lang.Integer
+intValue:()I@java.lang.Integer
+valueOf:(I)Ljava/lang/Integer;@java.lang.Integer
+<clinit>:()V@java.lang.Object
+<init>:()V@java.lang.Object
