@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jdct.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jdct.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This include file contains common declarations for the forward and</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * inverse DCT modules.  These declarations are private to the DCT managers</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * (jcdctmgr.c, jddctmgr.c) and the individual DCT algorithms.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * The individual DCT algorithms are kept in separate files to ease </span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * machine-dependent tuning (e.g., assembly coding).</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line14">014: </a>
+<a name="line15">015: </a>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * A forward DCT routine is given a pointer to a work area of type DCTELEM[];</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * the DCT is to be performed in-place in that buffer.  Type DCTELEM is int</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * for 8-bit samples, INT32 for 12-bit samples.  (NOTE: Floating-point DCT</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> * implementations use an array of type FAST_FLOAT, instead.)</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * The DCT inputs are expected to be signed (range +-CENTERJSAMPLE).</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> * The DCT outputs are returned scaled up by a factor of 8; they therefore</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * have a range of +-8K for 8-bit data, +-128K for 12-bit data.  This</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * convention improves accuracy in integer implementations and saves some</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * work in floating-point ones.</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * Quantization of the output coefficients is done by jcdctmgr.c.</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line28">028: </a>
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> BITS_IN_JSAMPLE <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">8</span>
+<a name="line30">030: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">int</span> DCTELEM<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* 16 or 32 bits is fine */</span></span>
+<a name="line31">031: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line32">032: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> INT32 DCTELEM<span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* must have 32 bits */</span></span>
+<a name="line33">033: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> forward_DCT_method_ptr<span style="color: #990000">,</span> <span style="color: #990000">(</span>DCTELEM <span style="color: #990000">*</span> data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line36">036: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> float_DCT_method_ptr<span style="color: #990000">,</span> <span style="color: #990000">(</span>FAST_FLOAT <span style="color: #990000">*</span> data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line37">037: </a>
+<a name="line38">038: </a>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * An inverse DCT routine is given a pointer to the input JBLOCK and a pointer</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * to an output sample array.  The routine must dequantize the input data as</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> * well as perform the IDCT; for dequantization, it uses the multiplier table</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900"> * pointed to by compptr-&gt;dct_table.  The output data is to be placed into the</span></span>
+<a name="line44">044: </a><span style="font-style: italic"><span style="color: #9A1900"> * sample array starting at a specified column.  (Any row offset needed will</span></span>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900"> * be applied to the array pointer before it is passed to the IDCT code.)</span></span>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that the number of samples emitted by the IDCT routine is</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900"> * DCT_scaled_size * DCT_scaled_size.</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line49">049: </a>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900">/* typedef inverse_DCT_method_ptr is declared in jpegint.h */</span></span>
+<a name="line51">051: </a>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> * Each IDCT routine has its own ideas about the best dct_table element type.</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line55">055: </a>
+<a name="line56">056: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> MULTIPLIER ISLOW_MULT_TYPE<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* short or int, whichever is faster */</span></span>
+<a name="line57">057: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> BITS_IN_JSAMPLE <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">8</span>
+<a name="line58">058: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> MULTIPLIER IFAST_MULT_TYPE<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* 16 bits is OK, use short if faster */</span></span>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> IFAST_SCALE_BITS  <span style="color: #993399">2</span>     <span style="font-style: italic"><span style="color: #9A1900">/* fractional bits in scale factors */</span></span>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> INT32 IFAST_MULT_TYPE<span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* need 32 bits for scaled quantizers */</span></span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> IFAST_SCALE_BITS  <span style="color: #993399">13</span>    <span style="font-style: italic"><span style="color: #9A1900">/* fractional bits in scale factors */</span></span>
+<a name="line63">063: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> FAST_FLOAT FLOAT_MULT_TYPE<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* preferred floating type */</span></span>
+<a name="line65">065: </a>
+<a name="line66">066: </a>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * Each IDCT routine is responsible for range-limiting its results and</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * converting them to unsigned form (0..MAXJSAMPLE).  The raw outputs could</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> * be quite far out of range if the input data is corrupt, so a bulletproof</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * range-limiting step is required.  We use a mask-and-table-lookup method</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> * to do the combined operations quickly.  See the comments with</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * prepare_range_limit_table (in jdmaster.c) for more info.</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line75">075: </a>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">IDCT_range_limit</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sample_range_limit <span style="color: #990000">+</span> CENTERJSAMPLE<span style="color: #990000">)</span>
+<a name="line77">077: </a>
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">RANGE_MASK</span></span>  <span style="color: #990000">(</span>MAXJSAMPLE <span style="color: #990000">*</span> <span style="color: #993399">4</span> <span style="color: #990000">+</span> <span style="color: #993399">3</span><span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* 2 bits wider than legal samples */</span></span>
+<a name="line79">079: </a>
+<a name="line80">080: </a>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line82">082: </a>
+<a name="line83">083: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_fdct_islow         jFDislow
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_fdct_ifast         jFDifast
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_fdct_float         jFDfloat
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_islow         jRDislow
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_ifast         jRDifast
+<a name="line89">089: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_float         jRDfloat
+<a name="line90">090: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_4x4           jRD4x4
+<a name="line91">091: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_2x2           jRD2x2
+<a name="line92">092: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_idct_1x1           jRD1x1
+<a name="line93">093: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line94">094: </a>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900">/* Extern declarations for the forward and inverse DCT routines. */</span></span>
+<a name="line96">096: </a>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_fdct_islow <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>DCTELEM <span style="color: #990000">*</span> data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_fdct_ifast <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>DCTELEM <span style="color: #990000">*</span> data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_fdct_float <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT <span style="color: #990000">*</span> data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line100">100: </a>
+<a name="line101">101: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_islow
+<a name="line102">102: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line103">103: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line104">104: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_ifast
+<a name="line105">105: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line106">106: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_float
+<a name="line108">108: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line109">109: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_4x4
+<a name="line111">111: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line112">112: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line113">113: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_2x2
+<a name="line114">114: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line115">115: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_idct_1x1
+<a name="line117">117: </a>    <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">,</span>
+<a name="line118">118: </a>         JCOEFPTR coef_block<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION output_col<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line119">119: </a>
+<a name="line120">120: </a>
+<a name="line121">121: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line122">122: </a><span style="font-style: italic"><span style="color: #9A1900"> * Macros for handling fixed-point arithmetic; these are used by many</span></span>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900"> * but not all of the DCT/IDCT modules.</span></span>
+<a name="line124">124: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line125">125: </a><span style="font-style: italic"><span style="color: #9A1900"> * All values are expected to be of type INT32.</span></span>
+<a name="line126">126: </a><span style="font-style: italic"><span style="color: #9A1900"> * Fractional constants are scaled left by CONST_BITS bits.</span></span>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900"> * CONST_BITS is defined within each module using these macros,</span></span>
+<a name="line128">128: </a><span style="font-style: italic"><span style="color: #9A1900"> * and may differ from one module to the next.</span></span>
+<a name="line129">129: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line130">130: </a>
+<a name="line131">131: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">ONE</span></span>     <span style="color: #990000">(</span><span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line132">132: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">CONST_SCALE</span></span> <span style="color: #990000">(</span>ONE <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> CONST_BITS<span style="color: #990000">)</span>
+<a name="line133">133: </a>
+<a name="line134">134: </a><span style="font-style: italic"><span style="color: #9A1900">/* Convert a positive real constant to an integer scaled by CONST_SCALE.</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900"> * Caution: some C compilers fail to reduce "FIX(constant)" at compile time,</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900"> * thus causing a lot of useless floating-point operations at run time.</span></span>
+<a name="line137">137: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line138">138: </a>
+<a name="line139">139: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">FIX</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>x<span style="color: #990000">)</span> <span style="color: #990000">*</span> CONST_SCALE <span style="color: #990000">+</span> <span style="color: #993399">0.5</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line140">140: </a>
+<a name="line141">141: </a><span style="font-style: italic"><span style="color: #9A1900">/* Descale and correctly round an INT32 value that's scaled by N bits.</span></span>
+<a name="line142">142: </a><span style="font-style: italic"><span style="color: #9A1900"> * We assume RIGHT_SHIFT rounds towards minus infinity, so adding</span></span>
+<a name="line143">143: </a><span style="font-style: italic"><span style="color: #9A1900"> * the fudge factor is correct for either sign of X.</span></span>
+<a name="line144">144: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line145">145: </a>
+<a name="line146">146: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DESCALE</span></span><span style="color: #990000">(</span>x<span style="color: #990000">,</span>n<span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">RIGHT_SHIFT</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>x<span style="color: #990000">)</span> <span style="color: #990000">+</span> <span style="color: #990000">(</span>ONE <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>n<span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">,</span> n<span style="color: #990000">)</span>
+<a name="line147">147: </a>
+<a name="line148">148: </a><span style="font-style: italic"><span style="color: #9A1900">/* Multiply an INT32 variable by an INT32 constant to yield an INT32 result.</span></span>
+<a name="line149">149: </a><span style="font-style: italic"><span style="color: #9A1900"> * This macro is used only when the two inputs will actually be no more than</span></span>
+<a name="line150">150: </a><span style="font-style: italic"><span style="color: #9A1900"> * 16 bits wide, so that a 16x16-&gt;32 bit multiply can be used instead of a</span></span>
+<a name="line151">151: </a><span style="font-style: italic"><span style="color: #9A1900"> * full 32x32 multiply.  This provides a useful speedup on many machines.</span></span>
+<a name="line152">152: </a><span style="font-style: italic"><span style="color: #9A1900"> * Unfortunately there is no way to specify a 16x16-&gt;32 multiply portably</span></span>
+<a name="line153">153: </a><span style="font-style: italic"><span style="color: #9A1900"> * in C, but some C compilers will do the right thing if you provide the</span></span>
+<a name="line154">154: </a><span style="font-style: italic"><span style="color: #9A1900"> * correct combination of casts.</span></span>
+<a name="line155">155: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line156">156: </a>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> SHORTxSHORT_32           <span style="font-style: italic"><span style="color: #9A1900">/* may work if 'int' is 32 bits */</span></span>
+<a name="line158">158: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MULTIPLY16C16</span></span><span style="color: #990000">(</span>var<span style="color: #990000">,</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>INT16<span style="color: #990000">)</span> <span style="color: #990000">(</span>var<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>INT16<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line159">159: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line160">160: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> SHORTxLCONST_32          <span style="font-style: italic"><span style="color: #9A1900">/* known to work with Microsoft C 6.0 */</span></span>
+<a name="line161">161: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MULTIPLY16C16</span></span><span style="color: #990000">(</span>var<span style="color: #990000">,</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>INT16<span style="color: #990000">)</span> <span style="color: #990000">(</span>var<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line162">162: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line163">163: </a>
+<a name="line164">164: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> MULTIPLY16C16           <span style="font-style: italic"><span style="color: #9A1900">/* default definition */</span></span>
+<a name="line165">165: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MULTIPLY16C16</span></span><span style="color: #990000">(</span>var<span style="color: #990000">,</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>var<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line166">166: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line167">167: </a>
+<a name="line168">168: </a><span style="font-style: italic"><span style="color: #9A1900">/* Same except both inputs are variables. */</span></span>
+<a name="line169">169: </a>
+<a name="line170">170: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> SHORTxSHORT_32           <span style="font-style: italic"><span style="color: #9A1900">/* may work if 'int' is 32 bits */</span></span>
+<a name="line171">171: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MULTIPLY16V16</span></span><span style="color: #990000">(</span>var1<span style="color: #990000">,</span>var2<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>INT16<span style="color: #990000">)</span> <span style="color: #990000">(</span>var1<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>INT16<span style="color: #990000">)</span> <span style="color: #990000">(</span>var2<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line172">172: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line173">173: </a>
+<a name="line174">174: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> MULTIPLY16V16           <span style="font-style: italic"><span style="color: #9A1900">/* default definition */</span></span>
+<a name="line175">175: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MULTIPLY16V16</span></span><span style="color: #990000">(</span>var1<span style="color: #990000">,</span>var2<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>var1<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span>var2<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line176">176: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+</tt>
+</pre>
+</body>
+</html>

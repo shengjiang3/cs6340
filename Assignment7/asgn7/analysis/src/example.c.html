@@ -1,0 +1,452 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/example.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * example.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file illustrates how to use the IJG code as a subroutine library</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * to read or write JPEG image files.  You should look at this code in</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * conjunction with the documentation file libjpeg.doc.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This code will not do anything useful as-is, but it may be helpful as a</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * skeleton for constructing routines that call the JPEG library.  </span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * We present these routines in the same coding style used in the JPEG code</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * (ANSI function definitions, etc); but you are of course free to code your</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * routines in a different style if you prefer.</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line15">015: </a>
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stdio.h&gt;</span>
+<a name="line17">017: </a>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * Include file for users of JPEG library.</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> * You will need to have included system headers that define at least</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * the typedefs FILE and size_t before you can include jpeglib.h.</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> * (stdio.h is sufficient on ANSI-conforming systems.)</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * You may also wish to include "jerror.h".</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line25">025: </a>
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line27">027: </a>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * &lt;setjmp.h&gt; is used for the optional error recovery mechanism shown in</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * the second part of the example.</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line32">032: </a>
+<a name="line33">033: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;setjmp.h&gt;</span>
+<a name="line34">034: </a>
+<a name="line35">035: </a>
+<a name="line36">036: </a>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900">/******************** JPEG COMPRESSION SAMPLE INTERFACE *******************/</span></span>
+<a name="line38">038: </a>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900">/* This half of the example shows how to feed data into the JPEG compressor.</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * We present a minimal version that does not worry about refinements such</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * as error recovery (the JPEG code will just exit() if it gets an error).</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line43">043: </a>
+<a name="line44">044: </a>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900"> * IMAGE DATA FORMATS:</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> * The standard input image format is a rectangular array of pixels, with</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * each pixel having the same number of "component" values (color channels).</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> * Each pixel row is an array of JSAMPLEs (which typically are unsigned chars).</span></span>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you are working with color data, then the color values for each pixel</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> * must be adjacent in the row; for example, R,G,B,R,G,B,R,G,B,... for 24-bit</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> * RGB color.</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * For this example, we'll assume that this data structure matches the way</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> * our application has stored the image in memory, so we can just pass a</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * pointer to our image buffer.  In particular, let's say that the image is</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * RGB color and is described by:</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line60">060: </a>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> JSAMPLE <span style="color: #990000">*</span> image_buffer<span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* Points to large array of R,G,B-order data */</span></span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">int</span> image_height<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Number of rows in image */</span></span>
+<a name="line63">063: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">int</span> image_width<span style="color: #990000">;</span>         <span style="font-style: italic"><span style="color: #9A1900">/* Number of columns in image */</span></span>
+<a name="line64">064: </a>
+<a name="line65">065: </a>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * Sample routine for JPEG compression.  We assume that the target file name</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * and a compression quality factor are passed in.</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line70">070: </a>
+<a name="line71">071: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #000000">write_JPEG_file</span></span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span> filename<span style="color: #990000">,</span> <span style="color: #009900">int</span> quality<span style="color: #990000">)</span>
+<a name="line73">073: </a><span style="color: #FF0000">{</span>
+<a name="line74">074: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This struct contains the JPEG compression parameters and pointers to</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900">   * working space (which is allocated as needed by the JPEG library).</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900">   * It is possible to have several such structures, representing multiple</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900">   * compression/decompression processes, in existence at once.  We refer</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900">   * to any one struct (and its associated working data) as a "JPEG object".</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line80">080: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_compress_struct cinfo<span style="color: #990000">;</span>
+<a name="line81">081: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This struct represents a JPEG error handler.  It is declared separately</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900">   * because applications often want to supply a specialized error handler</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900">   * (see the second half of this file for an example).  But here we just</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900">   * take the easy way out and use the standard error handler, which will</span></span>
+<a name="line85">085: </a><span style="font-style: italic"><span style="color: #9A1900">   * print a message on stderr and call exit() if compression fails.</span></span>
+<a name="line86">086: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note that this struct must live as long as the main JPEG parameter</span></span>
+<a name="line87">087: </a><span style="font-style: italic"><span style="color: #9A1900">   * struct, to avoid dangling-pointer problems.</span></span>
+<a name="line88">088: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line89">089: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_error_mgr jerr<span style="color: #990000">;</span>
+<a name="line90">090: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* More stuff */</span></span>
+<a name="line91">091: </a>  FILE <span style="color: #990000">*</span> outfile<span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* target file */</span></span>
+<a name="line92">092: </a>  JSAMPROW row_pointer<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* pointer to JSAMPLE row[s] */</span></span>
+<a name="line93">093: </a>  <span style="color: #009900">int</span> row_stride<span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* physical row width in image buffer */</span></span>
+<a name="line94">094: </a>
+<a name="line95">095: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 1: allocate and initialize JPEG compression object */</span></span>
+<a name="line96">096: </a>
+<a name="line97">097: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We have to set up the error handler first, in case the initialization</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900">   * step fails.  (Unlikely, but it could happen if you are out of memory.)</span></span>
+<a name="line99">099: </a><span style="font-style: italic"><span style="color: #9A1900">   * This routine fills in the contents of struct jerr, and returns jerr's</span></span>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900">   * address which we place into the link field in cinfo.</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line102">102: </a>  cinfo<span style="color: #990000">.</span>err <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_std_error</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>jerr<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line103">103: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Now we can initialize the JPEG compression object. */</span></span>
+<a name="line104">104: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_create_compress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line105">105: </a>
+<a name="line106">106: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 2: specify data destination (eg, a file) */</span></span>
+<a name="line107">107: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Note: steps 2 and 3 can be done in either order. */</span></span>
+<a name="line108">108: </a>
+<a name="line109">109: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Here we use the library-supplied code to send compressed data to a</span></span>
+<a name="line110">110: </a><span style="font-style: italic"><span style="color: #9A1900">   * stdio stream.  You can also write your own code to do something else.</span></span>
+<a name="line111">111: </a><span style="font-style: italic"><span style="color: #9A1900">   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that</span></span>
+<a name="line112">112: </a><span style="font-style: italic"><span style="color: #9A1900">   * requires it in order to write binary files.</span></span>
+<a name="line113">113: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line114">114: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>outfile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fopen</span></span><span style="color: #990000">(</span>filename<span style="color: #990000">,</span> <span style="color: #FF0000">"wb"</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line115">115: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"can't open %s\n"</span><span style="color: #990000">,</span> filename<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line116">116: </a>    <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line117">117: </a>  <span style="color: #FF0000">}</span>
+<a name="line118">118: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_stdio_dest</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> outfile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line119">119: </a>
+<a name="line120">120: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 3: set parameters for compression */</span></span>
+<a name="line121">121: </a>
+<a name="line122">122: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* First we supply a description of the input image.</span></span>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900">   * Four fields of the cinfo struct must be filled in:</span></span>
+<a name="line124">124: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line125">125: </a>  cinfo<span style="color: #990000">.</span>image_width <span style="color: #990000">=</span> image_width<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* image width and height, in pixels */</span></span>
+<a name="line126">126: </a>  cinfo<span style="color: #990000">.</span>image_height <span style="color: #990000">=</span> image_height<span style="color: #990000">;</span>
+<a name="line127">127: </a>  cinfo<span style="color: #990000">.</span>input_components <span style="color: #990000">=</span> <span style="color: #993399">3</span><span style="color: #990000">;</span>           <span style="font-style: italic"><span style="color: #9A1900">/* # of color components per pixel */</span></span>
+<a name="line128">128: </a>  cinfo<span style="color: #990000">.</span>in_color_space <span style="color: #990000">=</span> JCS_RGB<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* colorspace of input image */</span></span>
+<a name="line129">129: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Now use the library's routine to set default compression parameters.</span></span>
+<a name="line130">130: </a><span style="font-style: italic"><span style="color: #9A1900">   * (You must set at least cinfo.in_color_space before calling this,</span></span>
+<a name="line131">131: </a><span style="font-style: italic"><span style="color: #9A1900">   * since the defaults depend on the source color space.)</span></span>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line133">133: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_set_defaults</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line134">134: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Now you can set any non-default parameters you wish to.</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900">   * Here we just illustrate the use of quality (quantization table) scaling:</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line137">137: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_set_quality</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> quality<span style="color: #990000">,</span> TRUE <span style="font-style: italic"><span style="color: #9A1900">/* limit to baseline-JPEG values */</span></span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line138">138: </a>
+<a name="line139">139: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 4: Start compressor */</span></span>
+<a name="line140">140: </a>
+<a name="line141">141: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* TRUE ensures that we will write a complete interchange-JPEG file.</span></span>
+<a name="line142">142: </a><span style="font-style: italic"><span style="color: #9A1900">   * Pass TRUE unless you are very sure of what you're doing.</span></span>
+<a name="line143">143: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line144">144: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_start_compress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line145">145: </a>
+<a name="line146">146: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 5: while (scan lines remain to be written) */</span></span>
+<a name="line147">147: </a>  <span style="font-style: italic"><span style="color: #9A1900">/*           jpeg_write_scanlines(...); */</span></span>
+<a name="line148">148: </a>
+<a name="line149">149: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Here we use the library's state variable cinfo.next_scanline as the</span></span>
+<a name="line150">150: </a><span style="font-style: italic"><span style="color: #9A1900">   * loop counter, so that we don't have to keep track ourselves.</span></span>
+<a name="line151">151: </a><span style="font-style: italic"><span style="color: #9A1900">   * To keep things simple, we pass one scanline per call; you can pass</span></span>
+<a name="line152">152: </a><span style="font-style: italic"><span style="color: #9A1900">   * more if you wish, though.</span></span>
+<a name="line153">153: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line154">154: </a>  row_stride <span style="color: #990000">=</span> image_width <span style="color: #990000">*</span> <span style="color: #993399">3</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* JSAMPLEs per row in image_buffer */</span></span>
+<a name="line155">155: </a>
+<a name="line156">156: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">.</span>next_scanline <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">.</span>image_height<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line157">157: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* jpeg_write_scanlines expects an array of pointers to scanlines.</span></span>
+<a name="line158">158: </a><span style="font-style: italic"><span style="color: #9A1900">     * Here the array is only one element long, but you could pass</span></span>
+<a name="line159">159: </a><span style="font-style: italic"><span style="color: #9A1900">     * more than one scanline at a time if that's more convenient.</span></span>
+<a name="line160">160: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line161">161: </a>    row_pointer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">&amp;</span> image_buffer<span style="color: #990000">[</span>cinfo<span style="color: #990000">.</span>next_scanline <span style="color: #990000">*</span> row_stride<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line162">162: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_write_scanlines</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> row_pointer<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line163">163: </a>  <span style="color: #FF0000">}</span>
+<a name="line164">164: </a>
+<a name="line165">165: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 6: Finish compression */</span></span>
+<a name="line166">166: </a>
+<a name="line167">167: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_finish_compress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line168">168: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* After finish_compress, we can close the output file. */</span></span>
+<a name="line169">169: </a>  <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line170">170: </a>
+<a name="line171">171: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 7: release JPEG compression object */</span></span>
+<a name="line172">172: </a>
+<a name="line173">173: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This is an important step since it will release a good deal of memory. */</span></span>
+<a name="line174">174: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_destroy_compress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line175">175: </a>
+<a name="line176">176: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* And we're done! */</span></span>
+<a name="line177">177: </a><span style="color: #FF0000">}</span>
+<a name="line178">178: </a>
+<a name="line179">179: </a>
+<a name="line180">180: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line181">181: </a><span style="font-style: italic"><span style="color: #9A1900"> * SOME FINE POINTS:</span></span>
+<a name="line182">182: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line183">183: </a><span style="font-style: italic"><span style="color: #9A1900"> * In the above loop, we ignored the return value of jpeg_write_scanlines,</span></span>
+<a name="line184">184: </a><span style="font-style: italic"><span style="color: #9A1900"> * which is the number of scanlines actually written.  We could get away</span></span>
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900"> * with this because we were only relying on the value of cinfo.next_scanline,</span></span>
+<a name="line186">186: </a><span style="font-style: italic"><span style="color: #9A1900"> * which will be incremented correctly.  If you maintain additional loop</span></span>
+<a name="line187">187: </a><span style="font-style: italic"><span style="color: #9A1900"> * variables then you should be careful to increment them properly.</span></span>
+<a name="line188">188: </a><span style="font-style: italic"><span style="color: #9A1900"> * Actually, for output to a stdio stream you needn't worry, because</span></span>
+<a name="line189">189: </a><span style="font-style: italic"><span style="color: #9A1900"> * then jpeg_write_scanlines will write all the lines passed (or else exit</span></span>
+<a name="line190">190: </a><span style="font-style: italic"><span style="color: #9A1900"> * with a fatal error).  Partial writes can only occur if you use a data</span></span>
+<a name="line191">191: </a><span style="font-style: italic"><span style="color: #9A1900"> * destination module that can demand suspension of the compressor.</span></span>
+<a name="line192">192: </a><span style="font-style: italic"><span style="color: #9A1900"> * (If you don't know what that's for, you don't need it.)</span></span>
+<a name="line193">193: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line194">194: </a><span style="font-style: italic"><span style="color: #9A1900"> * If the compressor requires full-image buffers (for entropy-coding</span></span>
+<a name="line195">195: </a><span style="font-style: italic"><span style="color: #9A1900"> * optimization or a multi-scan JPEG file), it will create temporary</span></span>
+<a name="line196">196: </a><span style="font-style: italic"><span style="color: #9A1900"> * files for anything that doesn't fit within the maximum-memory setting.</span></span>
+<a name="line197">197: </a><span style="font-style: italic"><span style="color: #9A1900"> * (Note that temp files are NOT needed if you use the default parameters.)</span></span>
+<a name="line198">198: </a><span style="font-style: italic"><span style="color: #9A1900"> * On some systems you may need to set up a signal handler to ensure that</span></span>
+<a name="line199">199: </a><span style="font-style: italic"><span style="color: #9A1900"> * temporary files are deleted if the program is interrupted.  See libjpeg.doc.</span></span>
+<a name="line200">200: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line201">201: </a><span style="font-style: italic"><span style="color: #9A1900"> * Scanlines MUST be supplied in top-to-bottom order if you want your JPEG</span></span>
+<a name="line202">202: </a><span style="font-style: italic"><span style="color: #9A1900"> * files to be compatible with everyone else's.  If you cannot readily read</span></span>
+<a name="line203">203: </a><span style="font-style: italic"><span style="color: #9A1900"> * your data in that order, you'll need an intermediate array to hold the</span></span>
+<a name="line204">204: </a><span style="font-style: italic"><span style="color: #9A1900"> * image.  See rdtarga.c or rdbmp.c for examples of handling bottom-to-top</span></span>
+<a name="line205">205: </a><span style="font-style: italic"><span style="color: #9A1900"> * source data using the JPEG code's internal virtual-array mechanisms.</span></span>
+<a name="line206">206: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line207">207: </a>
+<a name="line208">208: </a>
+<a name="line209">209: </a>
+<a name="line210">210: </a><span style="font-style: italic"><span style="color: #9A1900">/******************** JPEG DECOMPRESSION SAMPLE INTERFACE *******************/</span></span>
+<a name="line211">211: </a>
+<a name="line212">212: </a><span style="font-style: italic"><span style="color: #9A1900">/* This half of the example shows how to read data from the JPEG decompressor.</span></span>
+<a name="line213">213: </a><span style="font-style: italic"><span style="color: #9A1900"> * It's a bit more refined than the above, in that we show:</span></span>
+<a name="line214">214: </a><span style="font-style: italic"><span style="color: #9A1900"> *   (a) how to modify the JPEG library's standard error-reporting behavior;</span></span>
+<a name="line215">215: </a><span style="font-style: italic"><span style="color: #9A1900"> *   (b) how to allocate workspace using the library's memory manager.</span></span>
+<a name="line216">216: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line217">217: </a><span style="font-style: italic"><span style="color: #9A1900"> * Just to make this example a little different from the first one, we'll</span></span>
+<a name="line218">218: </a><span style="font-style: italic"><span style="color: #9A1900"> * assume that we do not intend to put the whole image into an in-memory</span></span>
+<a name="line219">219: </a><span style="font-style: italic"><span style="color: #9A1900"> * buffer, but to send it line-by-line someplace else.  We need a one-</span></span>
+<a name="line220">220: </a><span style="font-style: italic"><span style="color: #9A1900"> * scanline-high JSAMPLE array as a work buffer, and we will let the JPEG</span></span>
+<a name="line221">221: </a><span style="font-style: italic"><span style="color: #9A1900"> * memory manager allocate it for us.  This approach is actually quite useful</span></span>
+<a name="line222">222: </a><span style="font-style: italic"><span style="color: #9A1900"> * because we don't need to remember to deallocate the buffer separately: it</span></span>
+<a name="line223">223: </a><span style="font-style: italic"><span style="color: #9A1900"> * will go away automatically when the JPEG object is cleaned up.</span></span>
+<a name="line224">224: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line225">225: </a>
+<a name="line226">226: </a>
+<a name="line227">227: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line228">228: </a><span style="font-style: italic"><span style="color: #9A1900"> * ERROR HANDLING:</span></span>
+<a name="line229">229: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line230">230: </a><span style="font-style: italic"><span style="color: #9A1900"> * The JPEG library's standard error handler (jerror.c) is divided into</span></span>
+<a name="line231">231: </a><span style="font-style: italic"><span style="color: #9A1900"> * several "methods" which you can override individually.  This lets you</span></span>
+<a name="line232">232: </a><span style="font-style: italic"><span style="color: #9A1900"> * adjust the behavior without duplicating a lot of code, which you might</span></span>
+<a name="line233">233: </a><span style="font-style: italic"><span style="color: #9A1900"> * have to update with each future release.</span></span>
+<a name="line234">234: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line235">235: </a><span style="font-style: italic"><span style="color: #9A1900"> * Our example here shows how to override the "error_exit" method so that</span></span>
+<a name="line236">236: </a><span style="font-style: italic"><span style="color: #9A1900"> * control is returned to the library's caller when a fatal error occurs,</span></span>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900"> * rather than calling exit() as the standard error_exit method does.</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900"> * We use C's setjmp/longjmp facility to return control.  This means that the</span></span>
+<a name="line240">240: </a><span style="font-style: italic"><span style="color: #9A1900"> * routine which calls the JPEG library must first execute a setjmp() call to</span></span>
+<a name="line241">241: </a><span style="font-style: italic"><span style="color: #9A1900"> * establish the return point.  We want the replacement error_exit to do a</span></span>
+<a name="line242">242: </a><span style="font-style: italic"><span style="color: #9A1900"> * longjmp().  But we need to make the setjmp buffer accessible to the</span></span>
+<a name="line243">243: </a><span style="font-style: italic"><span style="color: #9A1900"> * error_exit routine.  To do this, we make a private extension of the</span></span>
+<a name="line244">244: </a><span style="font-style: italic"><span style="color: #9A1900"> * standard JPEG error handler object.  (If we were using C++, we'd say we</span></span>
+<a name="line245">245: </a><span style="font-style: italic"><span style="color: #9A1900"> * were making a subclass of the regular error handler.)</span></span>
+<a name="line246">246: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line247">247: </a><span style="font-style: italic"><span style="color: #9A1900"> * Here's the extended error handler struct:</span></span>
+<a name="line248">248: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line249">249: </a>
+<a name="line250">250: </a><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> my_error_mgr <span style="color: #FF0000">{</span>
+<a name="line251">251: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_error_mgr pub<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* "public" fields */</span></span>
+<a name="line252">252: </a>
+<a name="line253">253: </a>  jmp_buf setjmp_buffer<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* for return to caller */</span></span>
+<a name="line254">254: </a><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line255">255: </a>
+<a name="line256">256: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> my_error_mgr <span style="color: #990000">*</span> my_error_ptr<span style="color: #990000">;</span>
+<a name="line257">257: </a>
+<a name="line258">258: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line259">259: </a><span style="font-style: italic"><span style="color: #9A1900"> * Here's the routine that will replace the standard error_exit method:</span></span>
+<a name="line260">260: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line261">261: </a>
+<a name="line262">262: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line263">263: </a><span style="font-weight: bold"><span style="color: #000000">my_error_exit</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line264">264: </a><span style="color: #FF0000">{</span>
+<a name="line265">265: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* cinfo-&gt;err really points to a my_error_mgr struct, so coerce pointer */</span></span>
+<a name="line266">266: </a>  my_error_ptr myerr <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_error_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>err<span style="color: #990000">;</span>
+<a name="line267">267: </a>
+<a name="line268">268: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Always display the message. */</span></span>
+<a name="line269">269: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We could postpone this until after returning, if we chose. */</span></span>
+<a name="line270">270: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>err<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>output_message<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line271">271: </a>
+<a name="line272">272: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Return control to the setjmp point */</span></span>
+<a name="line273">273: </a>  <span style="font-weight: bold"><span style="color: #000000">longjmp</span></span><span style="color: #990000">(</span>myerr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>setjmp_buffer<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line274">274: </a><span style="color: #FF0000">}</span>
+<a name="line275">275: </a>
+<a name="line276">276: </a>
+<a name="line277">277: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line278">278: </a><span style="font-style: italic"><span style="color: #9A1900"> * Sample routine for JPEG decompression.  We assume that the source file name</span></span>
+<a name="line279">279: </a><span style="font-style: italic"><span style="color: #9A1900"> * is passed in.  We want to return 1 on success, 0 on error.</span></span>
+<a name="line280">280: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line281">281: </a>
+<a name="line282">282: </a>
+<a name="line283">283: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span>
+<a name="line284">284: </a><span style="font-weight: bold"><span style="color: #000000">read_JPEG_file</span></span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span> filename<span style="color: #990000">)</span>
+<a name="line285">285: </a><span style="color: #FF0000">{</span>
+<a name="line286">286: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This struct contains the JPEG decompression parameters and pointers to</span></span>
+<a name="line287">287: </a><span style="font-style: italic"><span style="color: #9A1900">   * working space (which is allocated as needed by the JPEG library).</span></span>
+<a name="line288">288: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line289">289: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_decompress_struct cinfo<span style="color: #990000">;</span>
+<a name="line290">290: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We use our private extension JPEG error handler.</span></span>
+<a name="line291">291: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note that this struct must live as long as the main JPEG parameter</span></span>
+<a name="line292">292: </a><span style="font-style: italic"><span style="color: #9A1900">   * struct, to avoid dangling-pointer problems.</span></span>
+<a name="line293">293: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line294">294: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> my_error_mgr jerr<span style="color: #990000">;</span>
+<a name="line295">295: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* More stuff */</span></span>
+<a name="line296">296: </a>  FILE <span style="color: #990000">*</span> infile<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* source file */</span></span>
+<a name="line297">297: </a>  JSAMPARRAY buffer<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Output row buffer */</span></span>
+<a name="line298">298: </a>  <span style="color: #009900">int</span> row_stride<span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* physical row width in output buffer */</span></span>
+<a name="line299">299: </a>
+<a name="line300">300: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* In this example we want to open the input file before doing anything else,</span></span>
+<a name="line301">301: </a><span style="font-style: italic"><span style="color: #9A1900">   * so that the setjmp() error recovery below can assume the file is open.</span></span>
+<a name="line302">302: </a><span style="font-style: italic"><span style="color: #9A1900">   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that</span></span>
+<a name="line303">303: </a><span style="font-style: italic"><span style="color: #9A1900">   * requires it in order to read binary files.</span></span>
+<a name="line304">304: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line305">305: </a>
+<a name="line306">306: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>infile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fopen</span></span><span style="color: #990000">(</span>filename<span style="color: #990000">,</span> <span style="color: #FF0000">"rb"</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line307">307: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"can't open %s\n"</span><span style="color: #990000">,</span> filename<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line308">308: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line309">309: </a>  <span style="color: #FF0000">}</span>
+<a name="line310">310: </a>
+<a name="line311">311: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 1: allocate and initialize JPEG decompression object */</span></span>
+<a name="line312">312: </a>
+<a name="line313">313: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We set up the normal JPEG error routines, then override error_exit. */</span></span>
+<a name="line314">314: </a>  cinfo<span style="color: #990000">.</span>err <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_std_error</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>jerr<span style="color: #990000">.</span>pub<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line315">315: </a>  jerr<span style="color: #990000">.</span>pub<span style="color: #990000">.</span>error_exit <span style="color: #990000">=</span> my_error_exit<span style="color: #990000">;</span>
+<a name="line316">316: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Establish the setjmp return context for my_error_exit to use. */</span></span>
+<a name="line317">317: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">setjmp</span></span><span style="color: #990000">(</span>jerr<span style="color: #990000">.</span>setjmp_buffer<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line318">318: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* If we get here, the JPEG code has signaled an error.</span></span>
+<a name="line319">319: </a><span style="font-style: italic"><span style="color: #9A1900">     * We need to clean up the JPEG object, close the input file, and return.</span></span>
+<a name="line320">320: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line321">321: </a>    <span style="font-weight: bold"><span style="color: #000000">jpeg_destroy_decompress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line322">322: </a>    <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>infile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line323">323: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line324">324: </a>  <span style="color: #FF0000">}</span>
+<a name="line325">325: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Now we can initialize the JPEG decompression object. */</span></span>
+<a name="line326">326: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_create_decompress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line327">327: </a>
+<a name="line328">328: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 2: specify data source (eg, a file) */</span></span>
+<a name="line329">329: </a>
+<a name="line330">330: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_stdio_src</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> infile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line331">331: </a>
+<a name="line332">332: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 3: read file parameters with jpeg_read_header() */</span></span>
+<a name="line333">333: </a>
+<a name="line334">334: </a>  <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_read_header</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line335">335: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We can ignore the return value from jpeg_read_header since</span></span>
+<a name="line336">336: </a><span style="font-style: italic"><span style="color: #9A1900">   *   (a) suspension is not possible with the stdio data source, and</span></span>
+<a name="line337">337: </a><span style="font-style: italic"><span style="color: #9A1900">   *   (b) we passed TRUE to reject a tables-only JPEG file as an error.</span></span>
+<a name="line338">338: </a><span style="font-style: italic"><span style="color: #9A1900">   * See libjpeg.doc for more info.</span></span>
+<a name="line339">339: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line340">340: </a>
+<a name="line341">341: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 4: set parameters for decompression */</span></span>
+<a name="line342">342: </a>
+<a name="line343">343: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* In this example, we don't need to change any of the defaults set by</span></span>
+<a name="line344">344: </a><span style="font-style: italic"><span style="color: #9A1900">   * jpeg_read_header(), so we do nothing here.</span></span>
+<a name="line345">345: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line346">346: </a>
+<a name="line347">347: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 5: Start decompressor */</span></span>
+<a name="line348">348: </a>
+<a name="line349">349: </a>  <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_start_decompress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line350">350: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We can ignore the return value since suspension is not possible</span></span>
+<a name="line351">351: </a><span style="font-style: italic"><span style="color: #9A1900">   * with the stdio data source.</span></span>
+<a name="line352">352: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line353">353: </a>
+<a name="line354">354: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We may need to do some setup of our own at this point before reading</span></span>
+<a name="line355">355: </a><span style="font-style: italic"><span style="color: #9A1900">   * the data.  After jpeg_start_decompress() we have the correct scaled</span></span>
+<a name="line356">356: </a><span style="font-style: italic"><span style="color: #9A1900">   * output image dimensions available, as well as the output colormap</span></span>
+<a name="line357">357: </a><span style="font-style: italic"><span style="color: #9A1900">   * if we asked for color quantization.</span></span>
+<a name="line358">358: </a><span style="font-style: italic"><span style="color: #9A1900">   * In this example, we need to make an output work buffer of the right size.</span></span>
+<a name="line359">359: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span> 
+<a name="line360">360: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* JSAMPLEs per row in output buffer */</span></span>
+<a name="line361">361: </a>  row_stride <span style="color: #990000">=</span> cinfo<span style="color: #990000">.</span>output_width <span style="color: #990000">*</span> cinfo<span style="color: #990000">.</span>output_components<span style="color: #990000">;</span>
+<a name="line362">362: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Make a one-row-high sample array that will go away when done with image */</span></span>
+<a name="line363">363: </a>  buffer <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">.</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_sarray<span style="color: #990000">)</span>
+<a name="line364">364: </a>                <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span> row_stride<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line365">365: </a>
+<a name="line366">366: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 6: while (scan lines remain to be read) */</span></span>
+<a name="line367">367: </a>  <span style="font-style: italic"><span style="color: #9A1900">/*           jpeg_read_scanlines(...); */</span></span>
+<a name="line368">368: </a>
+<a name="line369">369: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Here we use the library's state variable cinfo.output_scanline as the</span></span>
+<a name="line370">370: </a><span style="font-style: italic"><span style="color: #9A1900">   * loop counter, so that we don't have to keep track ourselves.</span></span>
+<a name="line371">371: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line372">372: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">.</span>output_scanline <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">.</span>output_height<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line373">373: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* jpeg_read_scanlines expects an array of pointers to scanlines.</span></span>
+<a name="line374">374: </a><span style="font-style: italic"><span style="color: #9A1900">     * Here the array is only one element long, but you could ask for</span></span>
+<a name="line375">375: </a><span style="font-style: italic"><span style="color: #9A1900">     * more than one scanline at a time if that's more convenient.</span></span>
+<a name="line376">376: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line377">377: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_read_scanlines</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">,</span> buffer<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line378">378: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Assume put_scanline_someplace wants a pointer and sample count. */</span></span>
+<a name="line379">379: </a>    <span style="font-weight: bold"><span style="color: #000000">put_scanline_someplace</span></span><span style="color: #990000">(</span>buffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">,</span> row_stride<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line380">380: </a>  <span style="color: #FF0000">}</span>
+<a name="line381">381: </a>
+<a name="line382">382: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 7: Finish decompression */</span></span>
+<a name="line383">383: </a>
+<a name="line384">384: </a>  <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_finish_decompress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line385">385: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We can ignore the return value since suspension is not possible</span></span>
+<a name="line386">386: </a><span style="font-style: italic"><span style="color: #9A1900">   * with the stdio data source.</span></span>
+<a name="line387">387: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line388">388: </a>
+<a name="line389">389: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Step 8: Release JPEG decompression object */</span></span>
+<a name="line390">390: </a>
+<a name="line391">391: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This is an important step since it will release a good deal of memory. */</span></span>
+<a name="line392">392: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_destroy_decompress</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line393">393: </a>
+<a name="line394">394: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* After finish_decompress, we can close the input file.</span></span>
+<a name="line395">395: </a><span style="font-style: italic"><span style="color: #9A1900">   * Here we postpone it until after no more JPEG errors are possible,</span></span>
+<a name="line396">396: </a><span style="font-style: italic"><span style="color: #9A1900">   * so as to simplify the setjmp error logic above.  (Actually, I don't</span></span>
+<a name="line397">397: </a><span style="font-style: italic"><span style="color: #9A1900">   * think that jpeg_destroy can do an error exit, but why assume anything...)</span></span>
+<a name="line398">398: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line399">399: </a>  <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>infile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line400">400: </a>
+<a name="line401">401: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* At this point you may want to check to see whether any corrupt-data</span></span>
+<a name="line402">402: </a><span style="font-style: italic"><span style="color: #9A1900">   * warnings occurred (test whether jerr.pub.num_warnings is nonzero).</span></span>
+<a name="line403">403: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line404">404: </a>
+<a name="line405">405: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* And we're done! */</span></span>
+<a name="line406">406: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line407">407: </a><span style="color: #FF0000">}</span>
+<a name="line408">408: </a>
+<a name="line409">409: </a>
+<a name="line410">410: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line411">411: </a><span style="font-style: italic"><span style="color: #9A1900"> * SOME FINE POINTS:</span></span>
+<a name="line412">412: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line413">413: </a><span style="font-style: italic"><span style="color: #9A1900"> * In the above code, we ignored the return value of jpeg_read_scanlines,</span></span>
+<a name="line414">414: </a><span style="font-style: italic"><span style="color: #9A1900"> * which is the number of scanlines actually read.  We could get away with</span></span>
+<a name="line415">415: </a><span style="font-style: italic"><span style="color: #9A1900"> * this because we asked for only one line at a time and we weren't using</span></span>
+<a name="line416">416: </a><span style="font-style: italic"><span style="color: #9A1900"> * a suspending data source.  See libjpeg.doc for more info.</span></span>
+<a name="line417">417: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line418">418: </a><span style="font-style: italic"><span style="color: #9A1900"> * We cheated a bit by calling alloc_sarray() after jpeg_start_decompress();</span></span>
+<a name="line419">419: </a><span style="font-style: italic"><span style="color: #9A1900"> * we should have done it beforehand to ensure that the space would be</span></span>
+<a name="line420">420: </a><span style="font-style: italic"><span style="color: #9A1900"> * counted against the JPEG max_memory setting.  In some systems the above</span></span>
+<a name="line421">421: </a><span style="font-style: italic"><span style="color: #9A1900"> * code would risk an out-of-memory error.  However, in general we don't</span></span>
+<a name="line422">422: </a><span style="font-style: italic"><span style="color: #9A1900"> * know the output image dimensions before jpeg_start_decompress(), unless we</span></span>
+<a name="line423">423: </a><span style="font-style: italic"><span style="color: #9A1900"> * call jpeg_calc_output_dimensions().  See libjpeg.doc for more about this.</span></span>
+<a name="line424">424: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line425">425: </a><span style="font-style: italic"><span style="color: #9A1900"> * Scanlines are returned in the same order as they appear in the JPEG file,</span></span>
+<a name="line426">426: </a><span style="font-style: italic"><span style="color: #9A1900"> * which is standardly top-to-bottom.  If you must emit data bottom-to-top,</span></span>
+<a name="line427">427: </a><span style="font-style: italic"><span style="color: #9A1900"> * you can use one of the virtual arrays provided by the JPEG memory manager</span></span>
+<a name="line428">428: </a><span style="font-style: italic"><span style="color: #9A1900"> * to invert the data.  See wrbmp.c for an example.</span></span>
+<a name="line429">429: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line430">430: </a><span style="font-style: italic"><span style="color: #9A1900"> * As with compression, some operating modes may require temporary files.</span></span>
+<a name="line431">431: </a><span style="font-style: italic"><span style="color: #9A1900"> * On some systems you may need to set up a signal handler to ensure that</span></span>
+<a name="line432">432: </a><span style="font-style: italic"><span style="color: #9A1900"> * temporary files are deleted if the program is interrupted.  See libjpeg.doc.</span></span>
+<a name="line433">433: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+</tt>
+</pre>
+</body>
+</html>

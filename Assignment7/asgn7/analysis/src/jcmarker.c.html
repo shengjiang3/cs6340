@@ -1,0 +1,683 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jcmarker.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jcmarker.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1998, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains routines to write JPEG datastream markers.</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line10">010: </a>
+<a name="line11">011: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line12">012: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line13">013: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line14">014: </a>
+<a name="line15">015: </a>
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">enum</span></span> <span style="color: #FF0000">{</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* JPEG marker codes */</span></span>
+<a name="line17">017: </a>  M_SOF0  <span style="color: #990000">=</span> <span style="color: #993399">0xc0</span><span style="color: #990000">,</span>
+<a name="line18">018: </a>  M_SOF1  <span style="color: #990000">=</span> <span style="color: #993399">0xc1</span><span style="color: #990000">,</span>
+<a name="line19">019: </a>  M_SOF2  <span style="color: #990000">=</span> <span style="color: #993399">0xc2</span><span style="color: #990000">,</span>
+<a name="line20">020: </a>  M_SOF3  <span style="color: #990000">=</span> <span style="color: #993399">0xc3</span><span style="color: #990000">,</span>
+<a name="line21">021: </a>  
+<a name="line22">022: </a>  M_SOF5  <span style="color: #990000">=</span> <span style="color: #993399">0xc5</span><span style="color: #990000">,</span>
+<a name="line23">023: </a>  M_SOF6  <span style="color: #990000">=</span> <span style="color: #993399">0xc6</span><span style="color: #990000">,</span>
+<a name="line24">024: </a>  M_SOF7  <span style="color: #990000">=</span> <span style="color: #993399">0xc7</span><span style="color: #990000">,</span>
+<a name="line25">025: </a>  
+<a name="line26">026: </a>  M_JPG   <span style="color: #990000">=</span> <span style="color: #993399">0xc8</span><span style="color: #990000">,</span>
+<a name="line27">027: </a>  M_SOF9  <span style="color: #990000">=</span> <span style="color: #993399">0xc9</span><span style="color: #990000">,</span>
+<a name="line28">028: </a>  M_SOF10 <span style="color: #990000">=</span> <span style="color: #993399">0xca</span><span style="color: #990000">,</span>
+<a name="line29">029: </a>  M_SOF11 <span style="color: #990000">=</span> <span style="color: #993399">0xcb</span><span style="color: #990000">,</span>
+<a name="line30">030: </a>  
+<a name="line31">031: </a>  M_SOF13 <span style="color: #990000">=</span> <span style="color: #993399">0xcd</span><span style="color: #990000">,</span>
+<a name="line32">032: </a>  M_SOF14 <span style="color: #990000">=</span> <span style="color: #993399">0xce</span><span style="color: #990000">,</span>
+<a name="line33">033: </a>  M_SOF15 <span style="color: #990000">=</span> <span style="color: #993399">0xcf</span><span style="color: #990000">,</span>
+<a name="line34">034: </a>  
+<a name="line35">035: </a>  M_DHT   <span style="color: #990000">=</span> <span style="color: #993399">0xc4</span><span style="color: #990000">,</span>
+<a name="line36">036: </a>  
+<a name="line37">037: </a>  M_DAC   <span style="color: #990000">=</span> <span style="color: #993399">0xcc</span><span style="color: #990000">,</span>
+<a name="line38">038: </a>  
+<a name="line39">039: </a>  M_RST0  <span style="color: #990000">=</span> <span style="color: #993399">0xd0</span><span style="color: #990000">,</span>
+<a name="line40">040: </a>  M_RST1  <span style="color: #990000">=</span> <span style="color: #993399">0xd1</span><span style="color: #990000">,</span>
+<a name="line41">041: </a>  M_RST2  <span style="color: #990000">=</span> <span style="color: #993399">0xd2</span><span style="color: #990000">,</span>
+<a name="line42">042: </a>  M_RST3  <span style="color: #990000">=</span> <span style="color: #993399">0xd3</span><span style="color: #990000">,</span>
+<a name="line43">043: </a>  M_RST4  <span style="color: #990000">=</span> <span style="color: #993399">0xd4</span><span style="color: #990000">,</span>
+<a name="line44">044: </a>  M_RST5  <span style="color: #990000">=</span> <span style="color: #993399">0xd5</span><span style="color: #990000">,</span>
+<a name="line45">045: </a>  M_RST6  <span style="color: #990000">=</span> <span style="color: #993399">0xd6</span><span style="color: #990000">,</span>
+<a name="line46">046: </a>  M_RST7  <span style="color: #990000">=</span> <span style="color: #993399">0xd7</span><span style="color: #990000">,</span>
+<a name="line47">047: </a>  
+<a name="line48">048: </a>  M_SOI   <span style="color: #990000">=</span> <span style="color: #993399">0xd8</span><span style="color: #990000">,</span>
+<a name="line49">049: </a>  M_EOI   <span style="color: #990000">=</span> <span style="color: #993399">0xd9</span><span style="color: #990000">,</span>
+<a name="line50">050: </a>  M_SOS   <span style="color: #990000">=</span> <span style="color: #993399">0xda</span><span style="color: #990000">,</span>
+<a name="line51">051: </a>  M_DQT   <span style="color: #990000">=</span> <span style="color: #993399">0xdb</span><span style="color: #990000">,</span>
+<a name="line52">052: </a>  M_DNL   <span style="color: #990000">=</span> <span style="color: #993399">0xdc</span><span style="color: #990000">,</span>
+<a name="line53">053: </a>  M_DRI   <span style="color: #990000">=</span> <span style="color: #993399">0xdd</span><span style="color: #990000">,</span>
+<a name="line54">054: </a>  M_DHP   <span style="color: #990000">=</span> <span style="color: #993399">0xde</span><span style="color: #990000">,</span>
+<a name="line55">055: </a>  M_EXP   <span style="color: #990000">=</span> <span style="color: #993399">0xdf</span><span style="color: #990000">,</span>
+<a name="line56">056: </a>  
+<a name="line57">057: </a>  M_APP0  <span style="color: #990000">=</span> <span style="color: #993399">0xe0</span><span style="color: #990000">,</span>
+<a name="line58">058: </a>  M_APP1  <span style="color: #990000">=</span> <span style="color: #993399">0xe1</span><span style="color: #990000">,</span>
+<a name="line59">059: </a>  M_APP2  <span style="color: #990000">=</span> <span style="color: #993399">0xe2</span><span style="color: #990000">,</span>
+<a name="line60">060: </a>  M_APP3  <span style="color: #990000">=</span> <span style="color: #993399">0xe3</span><span style="color: #990000">,</span>
+<a name="line61">061: </a>  M_APP4  <span style="color: #990000">=</span> <span style="color: #993399">0xe4</span><span style="color: #990000">,</span>
+<a name="line62">062: </a>  M_APP5  <span style="color: #990000">=</span> <span style="color: #993399">0xe5</span><span style="color: #990000">,</span>
+<a name="line63">063: </a>  M_APP6  <span style="color: #990000">=</span> <span style="color: #993399">0xe6</span><span style="color: #990000">,</span>
+<a name="line64">064: </a>  M_APP7  <span style="color: #990000">=</span> <span style="color: #993399">0xe7</span><span style="color: #990000">,</span>
+<a name="line65">065: </a>  M_APP8  <span style="color: #990000">=</span> <span style="color: #993399">0xe8</span><span style="color: #990000">,</span>
+<a name="line66">066: </a>  M_APP9  <span style="color: #990000">=</span> <span style="color: #993399">0xe9</span><span style="color: #990000">,</span>
+<a name="line67">067: </a>  M_APP10 <span style="color: #990000">=</span> <span style="color: #993399">0xea</span><span style="color: #990000">,</span>
+<a name="line68">068: </a>  M_APP11 <span style="color: #990000">=</span> <span style="color: #993399">0xeb</span><span style="color: #990000">,</span>
+<a name="line69">069: </a>  M_APP12 <span style="color: #990000">=</span> <span style="color: #993399">0xec</span><span style="color: #990000">,</span>
+<a name="line70">070: </a>  M_APP13 <span style="color: #990000">=</span> <span style="color: #993399">0xed</span><span style="color: #990000">,</span>
+<a name="line71">071: </a>  M_APP14 <span style="color: #990000">=</span> <span style="color: #993399">0xee</span><span style="color: #990000">,</span>
+<a name="line72">072: </a>  M_APP15 <span style="color: #990000">=</span> <span style="color: #993399">0xef</span><span style="color: #990000">,</span>
+<a name="line73">073: </a>  
+<a name="line74">074: </a>  M_JPG0  <span style="color: #990000">=</span> <span style="color: #993399">0xf0</span><span style="color: #990000">,</span>
+<a name="line75">075: </a>  M_JPG13 <span style="color: #990000">=</span> <span style="color: #993399">0xfd</span><span style="color: #990000">,</span>
+<a name="line76">076: </a>  M_COM   <span style="color: #990000">=</span> <span style="color: #993399">0xfe</span><span style="color: #990000">,</span>
+<a name="line77">077: </a>  
+<a name="line78">078: </a>  M_TEM   <span style="color: #990000">=</span> <span style="color: #993399">0x01</span><span style="color: #990000">,</span>
+<a name="line79">079: </a>  
+<a name="line80">080: </a>  M_ERROR <span style="color: #990000">=</span> <span style="color: #993399">0x100</span>
+<a name="line81">081: </a><span style="color: #FF0000">}</span> JPEG_MARKER<span style="color: #990000">;</span>
+<a name="line82">082: </a>
+<a name="line83">083: </a>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900">/* Private state */</span></span>
+<a name="line85">085: </a>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line87">087: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_marker_writer pub<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* public fields */</span></span>
+<a name="line88">088: </a>
+<a name="line89">089: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> last_restart_interval<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* last DRI value emitted; 0 after SOI */</span></span>
+<a name="line90">090: </a><span style="color: #FF0000">}</span> my_marker_writer<span style="color: #990000">;</span>
+<a name="line91">091: </a>
+<a name="line92">092: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> my_marker_writer <span style="color: #990000">*</span> my_marker_ptr<span style="color: #990000">;</span>
+<a name="line93">093: </a>
+<a name="line94">094: </a>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * Basic output routines.</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that we do not support suspension while writing a marker.</span></span>
+<a name="line99">099: </a><span style="font-style: italic"><span style="color: #9A1900"> * Therefore, an application using suspension must ensure that there is</span></span>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900"> * enough buffer space for the initial markers (typ. 600-700 bytes) before</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900"> * calling jpeg_start_compress, and enough space to write the trailing EOI</span></span>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900"> * (a few bytes) before calling jpeg_finish_compress.  Multipass compression</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> * modes are not supported at all with suspension, so those two are the only</span></span>
+<a name="line104">104: </a><span style="font-style: italic"><span style="color: #9A1900"> * points where markers will be written.</span></span>
+<a name="line105">105: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line106">106: </a>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> val<span style="color: #990000">)</span>
+<a name="line109">109: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a byte */</span></span>
+<a name="line110">110: </a><span style="color: #FF0000">{</span>
+<a name="line111">111: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_destination_mgr <span style="color: #990000">*</span> dest <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line112">112: </a>
+<a name="line113">113: </a>  <span style="color: #990000">*</span><span style="color: #990000">(</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">)</span><span style="color: #990000">+</span><span style="color: #990000">+</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>JOCTET<span style="color: #990000">)</span> val<span style="color: #990000">;</span>
+<a name="line114">114: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">-</span><span style="color: #990000">-</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line115">115: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>empty_output_buffer<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line116">116: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_CANT_SUSPEND<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line117">117: </a>  <span style="color: #FF0000">}</span>
+<a name="line118">118: </a><span style="color: #FF0000">}</span>
+<a name="line119">119: </a>
+<a name="line120">120: </a>
+<a name="line121">121: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JPEG_MARKER mark<span style="color: #990000">)</span>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a marker code */</span></span>
+<a name="line124">124: </a><span style="color: #FF0000">{</span>
+<a name="line125">125: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line126">126: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> mark<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line127">127: </a><span style="color: #FF0000">}</span>
+<a name="line128">128: </a>
+<a name="line129">129: </a>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line131">131: </a><span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> value<span style="color: #990000">)</span>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a 2-byte integer; these are always MSB first in JPEG files */</span></span>
+<a name="line133">133: </a><span style="color: #FF0000">{</span>
+<a name="line134">134: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>value <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">8</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line135">135: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> value <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line136">136: </a><span style="color: #FF0000">}</span>
+<a name="line137">137: </a>
+<a name="line138">138: </a>
+<a name="line139">139: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line140">140: </a><span style="font-style: italic"><span style="color: #9A1900"> * Routines to write specific marker types.</span></span>
+<a name="line141">141: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line142">142: </a>
+<a name="line143">143: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span>
+<a name="line144">144: </a><span style="font-weight: bold"><span style="color: #000000">emit_dqt</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> index<span style="color: #990000">)</span>
+<a name="line145">145: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a DQT marker */</span></span>
+<a name="line146">146: </a><span style="font-style: italic"><span style="color: #9A1900">/* Returns the precision used (0 = 8bits, 1 = 16bits) for baseline checking */</span></span>
+<a name="line147">147: </a><span style="color: #FF0000">{</span>
+<a name="line148">148: </a>  JQUANT_TBL <span style="color: #990000">*</span> qtbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_ptrs<span style="color: #990000">[</span>index<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line149">149: </a>  <span style="color: #009900">int</span> prec<span style="color: #990000">;</span>
+<a name="line150">150: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line151">151: </a>
+<a name="line152">152: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>qtbl <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line153">153: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NO_QUANT_TABLE<span style="color: #990000">,</span> index<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line154">154: </a>
+<a name="line155">155: </a>  prec <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line156">156: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> DCTSIZE2<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line157">157: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quantval<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">&gt;</span> <span style="color: #993399">255</span><span style="color: #990000">)</span>
+<a name="line158">158: </a>      prec <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line159">159: </a>  <span style="color: #FF0000">}</span>
+<a name="line160">160: </a>
+<a name="line161">161: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line162">162: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_DQT<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line163">163: </a>
+<a name="line164">164: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> prec <span style="color: #990000">?</span> DCTSIZE2<span style="color: #990000">*</span><span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">:</span> DCTSIZE2 <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line165">165: </a>
+<a name="line166">166: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> index <span style="color: #990000">+</span> <span style="color: #990000">(</span>prec<span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line167">167: </a>
+<a name="line168">168: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> DCTSIZE2<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line169">169: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* The table entries must be emitted in zigzag order. */</span></span>
+<a name="line170">170: </a>      <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> qval <span style="color: #990000">=</span> qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quantval<span style="color: #990000">[</span>jpeg_natural_order<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line171">171: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>prec<span style="color: #990000">)</span>
+<a name="line172">172: </a>        <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>qval <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">8</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line173">173: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>qval <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line174">174: </a>    <span style="color: #FF0000">}</span>
+<a name="line175">175: </a>
+<a name="line176">176: </a>    qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>
+<a name="line177">177: </a>  <span style="color: #FF0000">}</span>
+<a name="line178">178: </a>
+<a name="line179">179: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> prec<span style="color: #990000">;</span>
+<a name="line180">180: </a><span style="color: #FF0000">}</span>
+<a name="line181">181: </a>
+<a name="line182">182: </a>
+<a name="line183">183: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line184">184: </a><span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> index<span style="color: #990000">,</span> boolean is_ac<span style="color: #990000">)</span>
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a DHT marker */</span></span>
+<a name="line186">186: </a><span style="color: #FF0000">{</span>
+<a name="line187">187: </a>  JHUFF_TBL <span style="color: #990000">*</span> htbl<span style="color: #990000">;</span>
+<a name="line188">188: </a>  <span style="color: #009900">int</span> length<span style="color: #990000">,</span> i<span style="color: #990000">;</span>
+<a name="line189">189: </a>  
+<a name="line190">190: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_ac<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line191">191: </a>    htbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_huff_tbl_ptrs<span style="color: #990000">[</span>index<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line192">192: </a>    index <span style="color: #990000">+</span><span style="color: #990000">=</span> <span style="color: #993399">0x10</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* output index has AC bit set */</span></span>
+<a name="line193">193: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line194">194: </a>    htbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_huff_tbl_ptrs<span style="color: #990000">[</span>index<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line195">195: </a>  <span style="color: #FF0000">}</span>
+<a name="line196">196: </a>
+<a name="line197">197: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>htbl <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line198">198: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NO_HUFF_TABLE<span style="color: #990000">,</span> index<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line199">199: </a>  
+<a name="line200">200: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line201">201: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_DHT<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line202">202: </a>    
+<a name="line203">203: </a>    length <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line204">204: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> <span style="color: #993399">16</span><span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line205">205: </a>      length <span style="color: #990000">+</span><span style="color: #990000">=</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bits<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line206">206: </a>    
+<a name="line207">207: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> length <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">16</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line208">208: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> index<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line209">209: </a>    
+<a name="line210">210: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> <span style="color: #993399">16</span><span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line211">211: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bits<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line212">212: </a>    
+<a name="line213">213: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> length<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line214">214: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>huffval<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line215">215: </a>    
+<a name="line216">216: </a>    htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>
+<a name="line217">217: </a>  <span style="color: #FF0000">}</span>
+<a name="line218">218: </a><span style="color: #FF0000">}</span>
+<a name="line219">219: </a>
+<a name="line220">220: </a>
+<a name="line221">221: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line222">222: </a><span style="font-weight: bold"><span style="color: #000000">emit_dac</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line223">223: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a DAC marker */</span></span>
+<a name="line224">224: </a><span style="font-style: italic"><span style="color: #9A1900">/* Since the useful info is so small, we want to emit all the tables in */</span></span>
+<a name="line225">225: </a><span style="font-style: italic"><span style="color: #9A1900">/* one DAC marker.  Therefore this routine does its own scan of the table. */</span></span>
+<a name="line226">226: </a><span style="color: #FF0000">{</span>
+<a name="line227">227: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> C_ARITH_CODING_SUPPORTED
+<a name="line228">228: </a>  <span style="color: #009900">char</span> dc_in_use<span style="color: #990000">[</span>NUM_ARITH_TBLS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line229">229: </a>  <span style="color: #009900">char</span> ac_in_use<span style="color: #990000">[</span>NUM_ARITH_TBLS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line230">230: </a>  <span style="color: #009900">int</span> length<span style="color: #990000">,</span> i<span style="color: #990000">;</span>
+<a name="line231">231: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line232">232: </a>  
+<a name="line233">233: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_ARITH_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line234">234: </a>    dc_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> ac_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line235">235: </a>  
+<a name="line236">236: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line237">237: </a>    compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line238">238: </a>    dc_in_use<span style="color: #990000">[</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line239">239: </a>    ac_in_use<span style="color: #990000">[</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line240">240: </a>  <span style="color: #FF0000">}</span>
+<a name="line241">241: </a>  
+<a name="line242">242: </a>  length <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line243">243: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_ARITH_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line244">244: </a>    length <span style="color: #990000">+</span><span style="color: #990000">=</span> dc_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">+</span> ac_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line245">245: </a>  
+<a name="line246">246: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_DAC<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line247">247: </a>  
+<a name="line248">248: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> length<span style="color: #990000">*</span><span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line249">249: </a>  
+<a name="line250">250: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_ARITH_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line251">251: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>dc_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line252">252: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> i<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line253">253: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_dc_L<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">+</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_dc_U<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line254">254: </a>    <span style="color: #FF0000">}</span>
+<a name="line255">255: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ac_in_use<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line256">256: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> i <span style="color: #990000">+</span> <span style="color: #993399">0x10</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line257">257: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_ac_K<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line258">258: </a>    <span style="color: #FF0000">}</span>
+<a name="line259">259: </a>  <span style="color: #FF0000">}</span>
+<a name="line260">260: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* C_ARITH_CODING_SUPPORTED */</span></span>
+<a name="line261">261: </a><span style="color: #FF0000">}</span>
+<a name="line262">262: </a>
+<a name="line263">263: </a>
+<a name="line264">264: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line265">265: </a><span style="font-weight: bold"><span style="color: #000000">emit_dri</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line266">266: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a DRI marker */</span></span>
+<a name="line267">267: </a><span style="color: #FF0000">{</span>
+<a name="line268">268: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_DRI<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line269">269: </a>  
+<a name="line270">270: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* fixed length */</span></span>
+<a name="line271">271: </a>
+<a name="line272">272: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line273">273: </a><span style="color: #FF0000">}</span>
+<a name="line274">274: </a>
+<a name="line275">275: </a>
+<a name="line276">276: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line277">277: </a><span style="font-weight: bold"><span style="color: #000000">emit_sof</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JPEG_MARKER code<span style="color: #990000">)</span>
+<a name="line278">278: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a SOF marker */</span></span>
+<a name="line279">279: </a><span style="color: #FF0000">{</span>
+<a name="line280">280: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">;</span>
+<a name="line281">281: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line282">282: </a>  
+<a name="line283">283: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> code<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line284">284: </a>  
+<a name="line285">285: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">3</span> <span style="color: #990000">*</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">5</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* length */</span></span>
+<a name="line286">286: </a>
+<a name="line287">287: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Make sure image isn't bigger than SOF field can handle */</span></span>
+<a name="line288">288: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>image_height <span style="color: #990000">&gt;</span> <span style="color: #993399">65535</span>L <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line289">289: </a>      <span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>image_width <span style="color: #990000">&gt;</span> <span style="color: #993399">65535</span>L<span style="color: #990000">)</span>
+<a name="line290">290: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_IMAGE_TOO_BIG<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #993399">65535</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line291">291: </a>
+<a name="line292">292: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>data_precision<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line293">293: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>image_height<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line294">294: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>image_width<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line295">295: </a>
+<a name="line296">296: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line297">297: </a>
+<a name="line298">298: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line299">299: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line300">300: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>component_id<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line301">301: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>h_samp_factor <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line302">302: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_no<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line303">303: </a>  <span style="color: #FF0000">}</span>
+<a name="line304">304: </a><span style="color: #FF0000">}</span>
+<a name="line305">305: </a>
+<a name="line306">306: </a>
+<a name="line307">307: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line308">308: </a><span style="font-weight: bold"><span style="color: #000000">emit_sos</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line309">309: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a SOS marker */</span></span>
+<a name="line310">310: </a><span style="color: #FF0000">{</span>
+<a name="line311">311: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">,</span> td<span style="color: #990000">,</span> ta<span style="color: #990000">;</span>
+<a name="line312">312: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line313">313: </a>  
+<a name="line314">314: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOS<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line315">315: </a>  
+<a name="line316">316: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">2</span> <span style="color: #990000">*</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">3</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* length */</span></span>
+<a name="line317">317: </a>  
+<a name="line318">318: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line319">319: </a>  
+<a name="line320">320: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line321">321: </a>    compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line322">322: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>component_id<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line323">323: </a>    td <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">;</span>
+<a name="line324">324: </a>    ta <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">;</span>
+<a name="line325">325: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line326">326: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Progressive mode: only DC or only AC tables are used in one scan;</span></span>
+<a name="line327">327: </a><span style="font-style: italic"><span style="color: #9A1900">       * furthermore, Huffman coding of DC refinement uses no table at all.</span></span>
+<a name="line328">328: </a><span style="font-style: italic"><span style="color: #9A1900">       * We emit 0 for unused field(s); this is recommended by the P&amp;M text</span></span>
+<a name="line329">329: </a><span style="font-style: italic"><span style="color: #9A1900">       * but does not seem to be specified in the standard.</span></span>
+<a name="line330">330: </a><span style="font-style: italic"><span style="color: #9A1900">       */</span></span>
+<a name="line331">331: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line332">332: </a>        ta <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* DC scan */</span></span>
+<a name="line333">333: </a>        <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span> <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span> <span style="color: #990000">!</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code<span style="color: #990000">)</span>
+<a name="line334">334: </a>          td <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* no DC table either */</span></span>
+<a name="line335">335: </a>      <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line336">336: </a>        td <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* AC scan */</span></span>
+<a name="line337">337: </a>      <span style="color: #FF0000">}</span>
+<a name="line338">338: </a>    <span style="color: #FF0000">}</span>
+<a name="line339">339: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>td <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> ta<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line340">340: </a>  <span style="color: #FF0000">}</span>
+<a name="line341">341: </a>
+<a name="line342">342: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line343">343: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Se<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line344">344: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Al<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line345">345: </a><span style="color: #FF0000">}</span>
+<a name="line346">346: </a>
+<a name="line347">347: </a>
+<a name="line348">348: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line349">349: </a><span style="font-weight: bold"><span style="color: #000000">emit_jfif_app0</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line350">350: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a JFIF-compliant APP0 marker */</span></span>
+<a name="line351">351: </a><span style="color: #FF0000">{</span>
+<a name="line352">352: </a>  <span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line353">353: </a><span style="font-style: italic"><span style="color: #9A1900">   * Length of APP0 block       (2 bytes)</span></span>
+<a name="line354">354: </a><span style="font-style: italic"><span style="color: #9A1900">   * Block ID                   (4 bytes - ASCII "JFIF")</span></span>
+<a name="line355">355: </a><span style="font-style: italic"><span style="color: #9A1900">   * Zero byte                  (1 byte to terminate the ID string)</span></span>
+<a name="line356">356: </a><span style="font-style: italic"><span style="color: #9A1900">   * Version Major, Minor       (2 bytes - major first)</span></span>
+<a name="line357">357: </a><span style="font-style: italic"><span style="color: #9A1900">   * Units                      (1 byte - 0x00 = none, 0x01 = inch, 0x02 = cm)</span></span>
+<a name="line358">358: </a><span style="font-style: italic"><span style="color: #9A1900">   * Xdpu                       (2 bytes - dots per unit horizontal)</span></span>
+<a name="line359">359: </a><span style="font-style: italic"><span style="color: #9A1900">   * Ydpu                       (2 bytes - dots per unit vertical)</span></span>
+<a name="line360">360: </a><span style="font-style: italic"><span style="color: #9A1900">   * Thumbnail X size           (1 byte)</span></span>
+<a name="line361">361: </a><span style="font-style: italic"><span style="color: #9A1900">   * Thumbnail Y size           (1 byte)</span></span>
+<a name="line362">362: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line363">363: </a>  
+<a name="line364">364: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_APP0<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line365">365: </a>  
+<a name="line366">366: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">4</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* length */</span></span>
+<a name="line367">367: </a>
+<a name="line368">368: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x4A</span><span style="color: #990000">)</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Identifier: ASCII "JFIF" */</span></span>
+<a name="line369">369: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x46</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line370">370: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x49</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line371">371: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x46</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line372">372: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line373">373: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>JFIF_major_version<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* Version fields */</span></span>
+<a name="line374">374: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>JFIF_minor_version<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line375">375: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>density_unit<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* Pixel size information */</span></span>
+<a name="line376">376: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>X_density<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line377">377: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Y_density<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line378">378: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* No thumbnail image */</span></span>
+<a name="line379">379: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line380">380: </a><span style="color: #FF0000">}</span>
+<a name="line381">381: </a>
+<a name="line382">382: </a>
+<a name="line383">383: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line384">384: </a><span style="font-weight: bold"><span style="color: #000000">emit_adobe_app14</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line385">385: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit an Adobe APP14 marker */</span></span>
+<a name="line386">386: </a><span style="color: #FF0000">{</span>
+<a name="line387">387: </a>  <span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line388">388: </a><span style="font-style: italic"><span style="color: #9A1900">   * Length of APP14 block      (2 bytes)</span></span>
+<a name="line389">389: </a><span style="font-style: italic"><span style="color: #9A1900">   * Block ID                   (5 bytes - ASCII "Adobe")</span></span>
+<a name="line390">390: </a><span style="font-style: italic"><span style="color: #9A1900">   * Version Number             (2 bytes - currently 100)</span></span>
+<a name="line391">391: </a><span style="font-style: italic"><span style="color: #9A1900">   * Flags0                     (2 bytes - currently 0)</span></span>
+<a name="line392">392: </a><span style="font-style: italic"><span style="color: #9A1900">   * Flags1                     (2 bytes - currently 0)</span></span>
+<a name="line393">393: </a><span style="font-style: italic"><span style="color: #9A1900">   * Color transform            (1 byte)</span></span>
+<a name="line394">394: </a><span style="font-style: italic"><span style="color: #9A1900">   *</span></span>
+<a name="line395">395: </a><span style="font-style: italic"><span style="color: #9A1900">   * Although Adobe TN 5116 mentions Version = 101, all the Adobe files</span></span>
+<a name="line396">396: </a><span style="font-style: italic"><span style="color: #9A1900">   * now in circulation seem to use Version = 100, so that's what we write.</span></span>
+<a name="line397">397: </a><span style="font-style: italic"><span style="color: #9A1900">   *</span></span>
+<a name="line398">398: </a><span style="font-style: italic"><span style="color: #9A1900">   * We write the color transform byte as 1 if the JPEG color space is</span></span>
+<a name="line399">399: </a><span style="font-style: italic"><span style="color: #9A1900">   * YCbCr, 2 if it's YCCK, 0 otherwise.  Adobe's definition has to do with</span></span>
+<a name="line400">400: </a><span style="font-style: italic"><span style="color: #9A1900">   * whether the encoder performed a transformation, which is pretty useless.</span></span>
+<a name="line401">401: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line402">402: </a>  
+<a name="line403">403: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_APP14<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line404">404: </a>  
+<a name="line405">405: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">5</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* length */</span></span>
+<a name="line406">406: </a>
+<a name="line407">407: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x41</span><span style="color: #990000">)</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Identifier: ASCII "Adobe" */</span></span>
+<a name="line408">408: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x64</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line409">409: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x6F</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line410">410: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x62</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line411">411: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0x65</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line412">412: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">100</span><span style="color: #990000">)</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* Version */</span></span>
+<a name="line413">413: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Flags0 */</span></span>
+<a name="line414">414: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Flags1 */</span></span>
+<a name="line415">415: </a>  <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>jpeg_color_space<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line416">416: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JCS_YCbCr<span style="color: #990000">:</span>
+<a name="line417">417: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Color transform = 1 */</span></span>
+<a name="line418">418: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line419">419: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JCS_YCCK<span style="color: #990000">:</span>
+<a name="line420">420: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Color transform = 2 */</span></span>
+<a name="line421">421: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line422">422: </a>  <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>
+<a name="line423">423: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* Color transform = 0 */</span></span>
+<a name="line424">424: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line425">425: </a>  <span style="color: #FF0000">}</span>
+<a name="line426">426: </a><span style="color: #FF0000">}</span>
+<a name="line427">427: </a>
+<a name="line428">428: </a>
+<a name="line429">429: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line430">430: </a><span style="font-style: italic"><span style="color: #9A1900"> * These routines allow writing an arbitrary marker with parameters.</span></span>
+<a name="line431">431: </a><span style="font-style: italic"><span style="color: #9A1900"> * The only intended use is to emit COM or APPn markers after calling</span></span>
+<a name="line432">432: </a><span style="font-style: italic"><span style="color: #9A1900"> * write_file_header and before calling write_frame_header.</span></span>
+<a name="line433">433: </a><span style="font-style: italic"><span style="color: #9A1900"> * Other uses are not guaranteed to produce desirable results.</span></span>
+<a name="line434">434: </a><span style="font-style: italic"><span style="color: #9A1900"> * Counting the parameter bytes properly is the caller's responsibility.</span></span>
+<a name="line435">435: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line436">436: </a>
+<a name="line437">437: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line438">438: </a><span style="font-weight: bold"><span style="color: #000000">write_marker_header</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> marker<span style="color: #990000">,</span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> datalen<span style="color: #990000">)</span>
+<a name="line439">439: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit an arbitrary marker header */</span></span>
+<a name="line440">440: </a><span style="color: #FF0000">{</span>
+<a name="line441">441: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>datalen <span style="color: #990000">&gt;</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #993399">65533</span><span style="color: #990000">)</span>           <span style="font-style: italic"><span style="color: #9A1900">/* safety check */</span></span>
+<a name="line442">442: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_LENGTH<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line443">443: </a>
+<a name="line444">444: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>JPEG_MARKER<span style="color: #990000">)</span> marker<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line445">445: </a>
+<a name="line446">446: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_2bytes</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>datalen <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* total length */</span></span>
+<a name="line447">447: </a><span style="color: #FF0000">}</span>
+<a name="line448">448: </a>
+<a name="line449">449: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line450">450: </a><span style="font-weight: bold"><span style="color: #000000">write_marker_byte</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> val<span style="color: #990000">)</span>
+<a name="line451">451: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit one byte of marker parameters following write_marker_header */</span></span>
+<a name="line452">452: </a><span style="color: #FF0000">{</span>
+<a name="line453">453: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> val<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line454">454: </a><span style="color: #FF0000">}</span>
+<a name="line455">455: </a>
+<a name="line456">456: </a>
+<a name="line457">457: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line458">458: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write datastream header.</span></span>
+<a name="line459">459: </a><span style="font-style: italic"><span style="color: #9A1900"> * This consists of an SOI and optional APPn markers.</span></span>
+<a name="line460">460: </a><span style="font-style: italic"><span style="color: #9A1900"> * We recommend use of the JFIF marker, but not the Adobe marker,</span></span>
+<a name="line461">461: </a><span style="font-style: italic"><span style="color: #9A1900"> * when using YCbCr or grayscale data.  The JFIF marker should NOT</span></span>
+<a name="line462">462: </a><span style="font-style: italic"><span style="color: #9A1900"> * be used for any other JPEG colorspace.  The Adobe marker is helpful</span></span>
+<a name="line463">463: </a><span style="font-style: italic"><span style="color: #9A1900"> * to distinguish RGB, CMYK, and YCCK colorspaces.</span></span>
+<a name="line464">464: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that an application can write additional header markers after</span></span>
+<a name="line465">465: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_start_compress returns.</span></span>
+<a name="line466">466: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line467">467: </a>
+<a name="line468">468: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line469">469: </a><span style="font-weight: bold"><span style="color: #000000">write_file_header</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line470">470: </a><span style="color: #FF0000">{</span>
+<a name="line471">471: </a>  my_marker_ptr marker <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_marker_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">;</span>
+<a name="line472">472: </a>
+<a name="line473">473: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOI<span style="color: #990000">)</span><span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* first the SOI */</span></span>
+<a name="line474">474: </a>
+<a name="line475">475: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* SOI is defined to reset restart interval to 0 */</span></span>
+<a name="line476">476: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_restart_interval <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line477">477: </a>
+<a name="line478">478: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_JFIF_header<span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* next an optional JFIF APP0 */</span></span>
+<a name="line479">479: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_jfif_app0</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line480">480: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_Adobe_marker<span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* next an optional Adobe APP14 */</span></span>
+<a name="line481">481: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_adobe_app14</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line482">482: </a><span style="color: #FF0000">}</span>
+<a name="line483">483: </a>
+<a name="line484">484: </a>
+<a name="line485">485: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line486">486: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write frame header.</span></span>
+<a name="line487">487: </a><span style="font-style: italic"><span style="color: #9A1900"> * This consists of DQT and SOFn markers.</span></span>
+<a name="line488">488: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that we do not emit the SOF until we have emitted the DQT(s).</span></span>
+<a name="line489">489: </a><span style="font-style: italic"><span style="color: #9A1900"> * This avoids compatibility problems with incorrect implementations that</span></span>
+<a name="line490">490: </a><span style="font-style: italic"><span style="color: #9A1900"> * try to error-check the quant table numbers as soon as they see the SOF.</span></span>
+<a name="line491">491: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line492">492: </a>
+<a name="line493">493: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line494">494: </a><span style="font-weight: bold"><span style="color: #000000">write_frame_header</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line495">495: </a><span style="color: #FF0000">{</span>
+<a name="line496">496: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> prec<span style="color: #990000">;</span>
+<a name="line497">497: </a>  boolean is_baseline<span style="color: #990000">;</span>
+<a name="line498">498: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line499">499: </a>  
+<a name="line500">500: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit DQT for each quantization table.</span></span>
+<a name="line501">501: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note that emit_dqt() suppresses any duplicate tables.</span></span>
+<a name="line502">502: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line503">503: </a>  prec <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line504">504: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line505">505: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line506">506: </a>    prec <span style="color: #990000">+</span><span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">emit_dqt</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_no<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line507">507: </a>  <span style="color: #FF0000">}</span>
+<a name="line508">508: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* now prec is nonzero iff there are any 16-bit quant tables. */</span></span>
+<a name="line509">509: </a>
+<a name="line510">510: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Check for a non-baseline specification.</span></span>
+<a name="line511">511: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note we assume that Huffman table numbers won't be changed later.</span></span>
+<a name="line512">512: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line513">513: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code <span style="color: #990000">|</span><span style="color: #990000">|</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line514">514: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>data_precision <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">8</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line515">515: </a>    is_baseline <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line516">516: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line517">517: </a>    is_baseline <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>
+<a name="line518">518: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line519">519: </a>         ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line520">520: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no <span style="color: #990000">&gt;</span> <span style="color: #993399">1</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no <span style="color: #990000">&gt;</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line521">521: </a>        is_baseline <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line522">522: </a>    <span style="color: #FF0000">}</span>
+<a name="line523">523: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>prec <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span> is_baseline<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line524">524: </a>      is_baseline <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line525">525: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* If it's baseline except for quantizer size, warn the user */</span></span>
+<a name="line526">526: </a>      <span style="font-weight: bold"><span style="color: #000000">TRACEMS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> JTRC_16BIT_TABLES<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line527">527: </a>    <span style="color: #FF0000">}</span>
+<a name="line528">528: </a>  <span style="color: #FF0000">}</span>
+<a name="line529">529: </a>
+<a name="line530">530: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit the proper SOF marker */</span></span>
+<a name="line531">531: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line532">532: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_sof</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOF9<span style="color: #990000">)</span><span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* SOF code for arithmetic coding */</span></span>
+<a name="line533">533: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line534">534: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode<span style="color: #990000">)</span>
+<a name="line535">535: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_sof</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOF2<span style="color: #990000">)</span><span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* SOF code for progressive Huffman */</span></span>
+<a name="line536">536: </a>    <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_baseline<span style="color: #990000">)</span>
+<a name="line537">537: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_sof</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOF0<span style="color: #990000">)</span><span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* SOF code for baseline implementation */</span></span>
+<a name="line538">538: </a>    <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line539">539: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_sof</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOF1<span style="color: #990000">)</span><span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* SOF code for non-baseline Huffman file */</span></span>
+<a name="line540">540: </a>  <span style="color: #FF0000">}</span>
+<a name="line541">541: </a><span style="color: #FF0000">}</span>
+<a name="line542">542: </a>
+<a name="line543">543: </a>
+<a name="line544">544: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line545">545: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write scan header.</span></span>
+<a name="line546">546: </a><span style="font-style: italic"><span style="color: #9A1900"> * This consists of DHT or DAC markers, optional DRI, and SOS.</span></span>
+<a name="line547">547: </a><span style="font-style: italic"><span style="color: #9A1900"> * Compressed data will be written following the SOS.</span></span>
+<a name="line548">548: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line549">549: </a>
+<a name="line550">550: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line551">551: </a><span style="font-weight: bold"><span style="color: #000000">write_scan_header</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line552">552: </a><span style="color: #FF0000">{</span>
+<a name="line553">553: </a>  my_marker_ptr marker <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_marker_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">;</span>
+<a name="line554">554: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line555">555: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line556">556: </a>
+<a name="line557">557: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line558">558: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit arith conditioning info.  We may have some duplication</span></span>
+<a name="line559">559: </a><span style="font-style: italic"><span style="color: #9A1900">     * if the file has multiple scans, but it's so small it's hardly</span></span>
+<a name="line560">560: </a><span style="font-style: italic"><span style="color: #9A1900">     * worth worrying about.</span></span>
+<a name="line561">561: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line562">562: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_dac</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line563">563: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line564">564: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit Huffman tables.</span></span>
+<a name="line565">565: </a><span style="font-style: italic"><span style="color: #9A1900">     * Note that emit_dht() suppresses any duplicate tables.</span></span>
+<a name="line566">566: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line567">567: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line568">568: </a>      compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line569">569: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line570">570: </a>        <span style="font-style: italic"><span style="color: #9A1900">/* Progressive mode: only DC or only AC tables are used in one scan */</span></span>
+<a name="line571">571: </a>        <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line572">572: </a>          <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>   <span style="font-style: italic"><span style="color: #9A1900">/* DC needs no table for refinement scan */</span></span>
+<a name="line573">573: </a>            <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">,</span> FALSE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line574">574: </a>        <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line575">575: </a>          <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line576">576: </a>        <span style="color: #FF0000">}</span>
+<a name="line577">577: </a>      <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line578">578: </a>        <span style="font-style: italic"><span style="color: #9A1900">/* Sequential mode: need both DC and AC tables */</span></span>
+<a name="line579">579: </a>        <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">,</span> FALSE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line580">580: </a>        <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line581">581: </a>      <span style="color: #FF0000">}</span>
+<a name="line582">582: </a>    <span style="color: #FF0000">}</span>
+<a name="line583">583: </a>  <span style="color: #FF0000">}</span>
+<a name="line584">584: </a>
+<a name="line585">585: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit DRI if required --- note that DRI value could change for each scan.</span></span>
+<a name="line586">586: </a><span style="font-style: italic"><span style="color: #9A1900">   * We avoid wasting space with unnecessary DRIs, however.</span></span>
+<a name="line587">587: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line588">588: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval <span style="color: #990000">!</span><span style="color: #990000">=</span> marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_restart_interval<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line589">589: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_dri</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line590">590: </a>    marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_restart_interval <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line591">591: </a>  <span style="color: #FF0000">}</span>
+<a name="line592">592: </a>
+<a name="line593">593: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_sos</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line594">594: </a><span style="color: #FF0000">}</span>
+<a name="line595">595: </a>
+<a name="line596">596: </a>
+<a name="line597">597: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line598">598: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write datastream trailer.</span></span>
+<a name="line599">599: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line600">600: </a>
+<a name="line601">601: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line602">602: </a><span style="font-weight: bold"><span style="color: #000000">write_file_trailer</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line603">603: </a><span style="color: #FF0000">{</span>
+<a name="line604">604: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_EOI<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line605">605: </a><span style="color: #FF0000">}</span>
+<a name="line606">606: </a>
+<a name="line607">607: </a>
+<a name="line608">608: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line609">609: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write an abbreviated table-specification datastream.</span></span>
+<a name="line610">610: </a><span style="font-style: italic"><span style="color: #9A1900"> * This consists of SOI, DQT and DHT tables, and EOI.</span></span>
+<a name="line611">611: </a><span style="font-style: italic"><span style="color: #9A1900"> * Any table that is defined and not marked sent_table = TRUE will be</span></span>
+<a name="line612">612: </a><span style="font-style: italic"><span style="color: #9A1900"> * emitted.  Note that all tables will be marked sent_table = TRUE at exit.</span></span>
+<a name="line613">613: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line614">614: </a>
+<a name="line615">615: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line616">616: </a><span style="font-weight: bold"><span style="color: #000000">write_tables_only</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line617">617: </a><span style="color: #FF0000">{</span>
+<a name="line618">618: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line619">619: </a>
+<a name="line620">620: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_SOI<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line621">621: </a>
+<a name="line622">622: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_QUANT_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line623">623: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line624">624: </a>      <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">emit_dqt</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> i<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line625">625: </a>  <span style="color: #FF0000">}</span>
+<a name="line626">626: </a>
+<a name="line627">627: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line628">628: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_HUFF_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line629">629: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line630">630: </a>        <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> i<span style="color: #990000">,</span> FALSE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line631">631: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line632">632: </a>        <span style="font-weight: bold"><span style="color: #000000">emit_dht</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> i<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line633">633: </a>    <span style="color: #FF0000">}</span>
+<a name="line634">634: </a>  <span style="color: #FF0000">}</span>
+<a name="line635">635: </a>
+<a name="line636">636: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_marker</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> M_EOI<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line637">637: </a><span style="color: #FF0000">}</span>
+<a name="line638">638: </a>
+<a name="line639">639: </a>
+<a name="line640">640: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line641">641: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize the marker writer module.</span></span>
+<a name="line642">642: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line643">643: </a>
+<a name="line644">644: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line645">645: </a><span style="font-weight: bold"><span style="color: #000000">jinit_marker_writer</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line646">646: </a><span style="color: #FF0000">{</span>
+<a name="line647">647: </a>  my_marker_ptr marker<span style="color: #990000">;</span>
+<a name="line648">648: </a>
+<a name="line649">649: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Create the subobject */</span></span>
+<a name="line650">650: </a>  marker <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_marker_ptr<span style="color: #990000">)</span>
+<a name="line651">651: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line652">652: </a>                                <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>my_marker_writer<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line653">653: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_marker_writer <span style="color: #990000">*</span><span style="color: #990000">)</span> marker<span style="color: #990000">;</span>
+<a name="line654">654: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize method pointers */</span></span>
+<a name="line655">655: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_file_header <span style="color: #990000">=</span> write_file_header<span style="color: #990000">;</span>
+<a name="line656">656: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_frame_header <span style="color: #990000">=</span> write_frame_header<span style="color: #990000">;</span>
+<a name="line657">657: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_scan_header <span style="color: #990000">=</span> write_scan_header<span style="color: #990000">;</span>
+<a name="line658">658: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_file_trailer <span style="color: #990000">=</span> write_file_trailer<span style="color: #990000">;</span>
+<a name="line659">659: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_tables_only <span style="color: #990000">=</span> write_tables_only<span style="color: #990000">;</span>
+<a name="line660">660: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_marker_header <span style="color: #990000">=</span> write_marker_header<span style="color: #990000">;</span>
+<a name="line661">661: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>write_marker_byte <span style="color: #990000">=</span> write_marker_byte<span style="color: #990000">;</span>
+<a name="line662">662: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize private state */</span></span>
+<a name="line663">663: </a>  marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_restart_interval <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line664">664: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

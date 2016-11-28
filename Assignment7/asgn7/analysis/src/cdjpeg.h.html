@@ -1,0 +1,203 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/cdjpeg.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * cdjpeg.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains common declarations for the sample applications</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * cjpeg and djpeg.  It is NOT used by the core JPEG library.</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line11">011: </a>
+<a name="line12">012: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_CJPEG_DJPEG        <span style="font-style: italic"><span style="color: #9A1900">/* define proper options in jconfig.h */</span></span>
+<a name="line13">013: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNAL_OPTIONS   <span style="font-style: italic"><span style="color: #9A1900">/* cjpeg.c,djpeg.c need to see xxx_SUPPORTED */</span></span>
+<a name="line14">014: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jerror.h"</span>               <span style="font-style: italic"><span style="color: #9A1900">/* get library error codes too */</span></span>
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"cderror.h"</span>              <span style="font-style: italic"><span style="color: #9A1900">/* get application-specific error codes */</span></span>
+<a name="line18">018: </a>
+<a name="line19">019: </a>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * Object interface for cjpeg's source file decoding modules</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> cjpeg_source_struct <span style="color: #990000">*</span> cjpeg_source_ptr<span style="color: #990000">;</span>
+<a name="line25">025: </a>
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> cjpeg_source_struct <span style="color: #FF0000">{</span>
+<a name="line27">027: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> start_input<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line28">028: </a>                              cjpeg_source_ptr sinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line29">029: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">,</span> get_pixel_rows<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line30">030: </a>                                       cjpeg_source_ptr sinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line31">031: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> finish_input<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line32">032: </a>                               cjpeg_source_ptr sinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line33">033: </a>
+<a name="line34">034: </a>  FILE <span style="color: #990000">*</span>input_file<span style="color: #990000">;</span>
+<a name="line35">035: </a>
+<a name="line36">036: </a>  JSAMPARRAY buffer<span style="color: #990000">;</span>
+<a name="line37">037: </a>  JDIMENSION buffer_height<span style="color: #990000">;</span>
+<a name="line38">038: </a><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line39">039: </a>
+<a name="line40">040: </a>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> * Object interface for djpeg's output file encoding modules</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line44">044: </a>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> djpeg_dest_struct <span style="color: #990000">*</span> djpeg_dest_ptr<span style="color: #990000">;</span>
+<a name="line46">046: </a>
+<a name="line47">047: </a><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> djpeg_dest_struct <span style="color: #FF0000">{</span>
+<a name="line48">048: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* start_output is called after jpeg_start_decompress finishes.</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900">   * The color map will be ready at this time, if one is needed.</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line51">051: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> start_output<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line52">052: </a>                               djpeg_dest_ptr dinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line53">053: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit the specified number of pixel rows from the buffer. */</span></span>
+<a name="line54">054: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> put_pixel_rows<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line55">055: </a>                                 djpeg_dest_ptr dinfo<span style="color: #990000">,</span>
+<a name="line56">056: </a>                                 JDIMENSION rows_supplied<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line57">057: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Finish up at the end of the image. */</span></span>
+<a name="line58">058: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> finish_output<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line59">059: </a>                                djpeg_dest_ptr dinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line60">060: </a>
+<a name="line61">061: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Target file spec; filled in by djpeg.c after object is created. */</span></span>
+<a name="line62">062: </a>  FILE <span style="color: #990000">*</span> output_file<span style="color: #990000">;</span>
+<a name="line63">063: </a>
+<a name="line64">064: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Output pixel-row buffer.  Created by module init or start_output.</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900">   * Width is cinfo-&gt;output_width * cinfo-&gt;output_components;</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900">   * height is buffer_height.</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line68">068: </a>  JSAMPARRAY buffer<span style="color: #990000">;</span>
+<a name="line69">069: </a>  JDIMENSION buffer_height<span style="color: #990000">;</span>
+<a name="line70">070: </a><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line71">071: </a>
+<a name="line72">072: </a>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * cjpeg/djpeg may need to perform extra passes to convert to or from</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> * the source/destination file format.  The JPEG library does not know</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * about these passes, but we'd like them to be counted by the progress</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> * monitor.  We use an expanded progress monitor object to hold the</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> * additional pass count.</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line80">080: </a>
+<a name="line81">081: </a><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> cdjpeg_progress_mgr <span style="color: #FF0000">{</span>
+<a name="line82">082: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_progress_mgr pub<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* fields known to JPEG library */</span></span>
+<a name="line83">083: </a>  <span style="color: #009900">int</span> completed_extra_passes<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* extra passes completed */</span></span>
+<a name="line84">084: </a>  <span style="color: #009900">int</span> total_extra_passes<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* total extra */</span></span>
+<a name="line85">085: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* last printed percentage stored here to avoid multiple printouts */</span></span>
+<a name="line86">086: </a>  <span style="color: #009900">int</span> percent_done<span style="color: #990000">;</span>
+<a name="line87">087: </a><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line88">088: </a>
+<a name="line89">089: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> cdjpeg_progress_mgr <span style="color: #990000">*</span> cd_progress_ptr<span style="color: #990000">;</span>
+<a name="line90">090: </a>
+<a name="line91">091: </a>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line93">093: </a>
+<a name="line94">094: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line95">095: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_read_bmp          jIRdBMP
+<a name="line96">096: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_write_bmp         jIWrBMP
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_read_gif          jIRdGIF
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_write_gif         jIWrGIF
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_read_ppm          jIRdPPM
+<a name="line100">100: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_write_ppm         jIWrPPM
+<a name="line101">101: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_read_rle          jIRdRLE
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_write_rle         jIWrRLE
+<a name="line103">103: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_read_targa        jIRdTarga
+<a name="line104">104: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jinit_write_targa       jIWrTarga
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> read_quant_tables       RdQTables
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> read_scan_script        RdScnScript
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> set_quant_slots         SetQSlots
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> set_sample_factors      SetSFacts
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> read_color_map          RdCMap
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> enable_signal_catcher   EnSigCatcher
+<a name="line111">111: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> start_progress_monitor  StProgMon
+<a name="line112">112: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> end_progress_monitor    EnProgMon
+<a name="line113">113: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> read_stdin              RdStdin
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> write_stdout            WrStdout
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line116">116: </a>
+<a name="line117">117: </a><span style="font-style: italic"><span style="color: #9A1900">/* Module selection routines for I/O modules. */</span></span>
+<a name="line118">118: </a>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>cjpeg_source_ptr<span style="color: #990000">)</span> jinit_read_bmp <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line120">120: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>djpeg_dest_ptr<span style="color: #990000">)</span> jinit_write_bmp <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line121">121: </a>                                            boolean is_os2<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>cjpeg_source_ptr<span style="color: #990000">)</span> jinit_read_gif <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line123">123: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>djpeg_dest_ptr<span style="color: #990000">)</span> jinit_write_gif <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line124">124: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>cjpeg_source_ptr<span style="color: #990000">)</span> jinit_read_ppm <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line125">125: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>djpeg_dest_ptr<span style="color: #990000">)</span> jinit_write_ppm <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line126">126: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>cjpeg_source_ptr<span style="color: #990000">)</span> jinit_read_rle <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line127">127: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>djpeg_dest_ptr<span style="color: #990000">)</span> jinit_write_rle <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line128">128: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>cjpeg_source_ptr<span style="color: #990000">)</span> jinit_read_targa <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line129">129: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>djpeg_dest_ptr<span style="color: #990000">)</span> jinit_write_targa <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line130">130: </a>
+<a name="line131">131: </a><span style="font-style: italic"><span style="color: #9A1900">/* cjpeg support routines (in rdswitch.c) */</span></span>
+<a name="line132">132: </a>
+<a name="line133">133: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> read_quant_tables <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> filename<span style="color: #990000">,</span>
+<a name="line134">134: </a>                                    <span style="color: #009900">int</span> scale_factor<span style="color: #990000">,</span> boolean force_baseline<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line135">135: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> read_scan_script <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> filename<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line136">136: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> set_quant_slots <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span>arg<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line137">137: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> set_sample_factors <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span>arg<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line138">138: </a>
+<a name="line139">139: </a><span style="font-style: italic"><span style="color: #9A1900">/* djpeg support routines (in rdcolmap.c) */</span></span>
+<a name="line140">140: </a>
+<a name="line141">141: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> read_color_map <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> FILE <span style="color: #990000">*</span> infile<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line142">142: </a>
+<a name="line143">143: </a><span style="font-style: italic"><span style="color: #9A1900">/* common support routines (in cdjpeg.c) */</span></span>
+<a name="line144">144: </a>
+<a name="line145">145: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> enable_signal_catcher <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line146">146: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> start_progress_monitor <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line147">147: </a>                                         cd_progress_ptr progress<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line148">148: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> end_progress_monitor <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line149">149: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> keymatch <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span> arg<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> keyword<span style="color: #990000">,</span> <span style="color: #009900">int</span> minchars<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line150">150: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>FILE <span style="color: #990000">*</span><span style="color: #990000">)</span> read_stdin <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line151">151: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>FILE <span style="color: #990000">*</span><span style="color: #990000">)</span> write_stdout <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line152">152: </a>
+<a name="line153">153: </a><span style="font-style: italic"><span style="color: #9A1900">/* miscellaneous useful macros */</span></span>
+<a name="line154">154: </a>
+<a name="line155">155: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DONT_USE_B_MODE          <span style="font-style: italic"><span style="color: #9A1900">/* define mode parameters for fopen() */</span></span>
+<a name="line156">156: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"r"</span>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> WRITE_BINARY    <span style="color: #FF0000">"w"</span>
+<a name="line158">158: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line159">159: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> VMS                      <span style="font-style: italic"><span style="color: #9A1900">/* VMS is very nonstandard */</span></span>
+<a name="line160">160: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"rb"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"ctx=stm"</span>
+<a name="line161">161: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> WRITE_BINARY    <span style="color: #FF0000">"wb"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"ctx=stm"</span>
+<a name="line162">162: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>                           <span style="font-style: italic"><span style="color: #9A1900">/* standard ANSI-compliant case */</span></span>
+<a name="line163">163: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"rb"</span>
+<a name="line164">164: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> WRITE_BINARY    <span style="color: #FF0000">"wb"</span>
+<a name="line165">165: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line166">166: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line167">167: </a>
+<a name="line168">168: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EXIT_FAILURE            <span style="font-style: italic"><span style="color: #9A1900">/* define exit() codes if not provided */</span></span>
+<a name="line169">169: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_FAILURE  <span style="color: #993399">1</span>
+<a name="line170">170: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line171">171: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EXIT_SUCCESS
+<a name="line172">172: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> VMS
+<a name="line173">173: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_SUCCESS  <span style="color: #993399">1</span>         <span style="font-style: italic"><span style="color: #9A1900">/* VMS is very nonstandard */</span></span>
+<a name="line174">174: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line175">175: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_SUCCESS  <span style="color: #993399">0</span>
+<a name="line176">176: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line177">177: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line178">178: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EXIT_WARNING
+<a name="line179">179: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> VMS
+<a name="line180">180: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_WARNING  <span style="color: #993399">1</span>         <span style="font-style: italic"><span style="color: #9A1900">/* VMS is very nonstandard */</span></span>
+<a name="line181">181: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line182">182: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_WARNING  <span style="color: #993399">2</span>
+<a name="line183">183: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line184">184: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+</tt>
+</pre>
+</body>
+</html>

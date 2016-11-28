@@ -1,0 +1,515 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/rdjpgcom.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * rdjpgcom.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains a very simple stand-alone application that displays</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * the text in COM (comment) markers in a JFIF file.</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * This may be useful as an example of the minimum logic needed to parse</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG markers.</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line13">013: </a>
+<a name="line14">014: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_CJPEG_DJPEG        <span style="font-style: italic"><span style="color: #9A1900">/* to get the command-line config symbols */</span></span>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>             <span style="font-style: italic"><span style="color: #9A1900">/* get auto-config symbols, &lt;stdio.h&gt; */</span></span>
+<a name="line16">016: </a>
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;ctype.h&gt;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* to declare isupper(), tolower() */</span></span>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_SETMODE
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;fcntl.h&gt;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* to declare setmode()'s parameter macros */</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900">/* If you have setmode() but not &lt;io.h&gt;, just delete this line: */</span></span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;io.h&gt;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* to declare setmode() */</span></span>
+<a name="line22">022: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_CCOMMAND             <span style="font-style: italic"><span style="color: #9A1900">/* command-line reader for Macintosh */</span></span>
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> __MWERKS__
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;SIOUX.h&gt;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* Metrowerks needs this */</span></span>
+<a name="line27">027: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;console.h&gt;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* ... and this */</span></span>
+<a name="line28">028: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> THINK_C
+<a name="line30">030: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;console.h&gt;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Think declares it here */</span></span>
+<a name="line31">031: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line32">032: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line33">033: </a>
+<a name="line34">034: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DONT_USE_B_MODE          <span style="font-style: italic"><span style="color: #9A1900">/* define mode parameters for fopen() */</span></span>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"r"</span>
+<a name="line36">036: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line37">037: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> VMS                      <span style="font-style: italic"><span style="color: #9A1900">/* VMS is very nonstandard */</span></span>
+<a name="line38">038: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"rb"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"ctx=stm"</span>
+<a name="line39">039: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>                           <span style="font-style: italic"><span style="color: #9A1900">/* standard ANSI-compliant case */</span></span>
+<a name="line40">040: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"rb"</span>
+<a name="line41">041: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line43">043: </a>
+<a name="line44">044: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EXIT_FAILURE            <span style="font-style: italic"><span style="color: #9A1900">/* define exit() codes if not provided */</span></span>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_FAILURE  <span style="color: #993399">1</span>
+<a name="line46">046: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line47">047: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EXIT_SUCCESS
+<a name="line48">048: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> VMS
+<a name="line49">049: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_SUCCESS  <span style="color: #993399">1</span>         <span style="font-style: italic"><span style="color: #9A1900">/* VMS is very nonstandard */</span></span>
+<a name="line50">050: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line51">051: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EXIT_SUCCESS  <span style="color: #993399">0</span>
+<a name="line52">052: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line53">053: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line54">054: </a>
+<a name="line55">055: </a>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * These macros are used to read the input file.</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * To reuse this code in another application, you might need to change these.</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line60">060: </a>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> FILE <span style="color: #990000">*</span> infile<span style="color: #990000">;</span>           <span style="font-style: italic"><span style="color: #9A1900">/* input JPEG file */</span></span>
+<a name="line62">062: </a>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900">/* Return next input byte, or EOF if no more */</span></span>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">getc</span></span><span style="color: #990000">(</span>infile<span style="color: #990000">)</span>
+<a name="line65">065: </a>
+<a name="line66">066: </a>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900">/* Error exit handler */</span></span>
+<a name="line68">068: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>msg<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"%s\n"</span><span style="color: #990000">,</span> msg<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span>EXIT_FAILURE<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line69">069: </a>
+<a name="line70">070: </a>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900">/* Read one byte, testing for EOF */</span></span>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span>
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line74">074: </a><span style="color: #FF0000">{</span>
+<a name="line75">075: </a>  <span style="color: #009900">int</span> c<span style="color: #990000">;</span>
+<a name="line76">076: </a>
+<a name="line77">077: </a>  c <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line78">078: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>c <span style="color: #990000">=</span><span style="color: #990000">=</span> EOF<span style="color: #990000">)</span>
+<a name="line79">079: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Premature EOF in JPEG file"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line80">080: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> c<span style="color: #990000">;</span>
+<a name="line81">081: </a><span style="color: #FF0000">}</span>
+<a name="line82">082: </a>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900">/* Read 2 bytes, convert to unsigned int */</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900">/* All 2-byte quantities in JPEG markers are MSB first */</span></span>
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line87">087: </a><span style="color: #FF0000">{</span>
+<a name="line88">088: </a>  <span style="color: #009900">int</span> c1<span style="color: #990000">,</span> c2<span style="color: #990000">;</span>
+<a name="line89">089: </a>
+<a name="line90">090: </a>  c1 <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line91">091: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>c1 <span style="color: #990000">=</span><span style="color: #990000">=</span> EOF<span style="color: #990000">)</span>
+<a name="line92">092: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Premature EOF in JPEG file"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line93">093: </a>  c2 <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line94">094: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>c2 <span style="color: #990000">=</span><span style="color: #990000">=</span> EOF<span style="color: #990000">)</span>
+<a name="line95">095: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Premature EOF in JPEG file"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line96">096: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> c1<span style="color: #990000">)</span> <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">8</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> c2<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line97">097: </a><span style="color: #FF0000">}</span>
+<a name="line98">098: </a>
+<a name="line99">099: </a>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG markers consist of one or more 0xFF bytes, followed by a marker</span></span>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900"> * code byte (which is not an FF).  Here are the marker codes of interest</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> * in this program.  (See jdmarker.c for a more complete list.)</span></span>
+<a name="line104">104: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line105">105: </a>
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF0  <span style="color: #993399">0xC0</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Start Of Frame N */</span></span>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF1  <span style="color: #993399">0xC1</span>            <span style="font-style: italic"><span style="color: #9A1900">/* N indicates which compression process */</span></span>
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF2  <span style="color: #993399">0xC2</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Only SOF0-SOF2 are now in common use */</span></span>
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF3  <span style="color: #993399">0xC3</span>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF5  <span style="color: #993399">0xC5</span>            <span style="font-style: italic"><span style="color: #9A1900">/* NB: codes C4 and CC are NOT SOF markers */</span></span>
+<a name="line111">111: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF6  <span style="color: #993399">0xC6</span>
+<a name="line112">112: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF7  <span style="color: #993399">0xC7</span>
+<a name="line113">113: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF9  <span style="color: #993399">0xC9</span>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF10 <span style="color: #993399">0xCA</span>
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF11 <span style="color: #993399">0xCB</span>
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF13 <span style="color: #993399">0xCD</span>
+<a name="line117">117: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF14 <span style="color: #993399">0xCE</span>
+<a name="line118">118: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOF15 <span style="color: #993399">0xCF</span>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOI   <span style="color: #993399">0xD8</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Start Of Image (beginning of datastream) */</span></span>
+<a name="line120">120: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_EOI   <span style="color: #993399">0xD9</span>            <span style="font-style: italic"><span style="color: #9A1900">/* End Of Image (end of datastream) */</span></span>
+<a name="line121">121: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_SOS   <span style="color: #993399">0xDA</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Start Of Scan (begins compressed data) */</span></span>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_APP0  <span style="color: #993399">0xE0</span>            <span style="font-style: italic"><span style="color: #9A1900">/* Application-specific marker, type N */</span></span>
+<a name="line123">123: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_APP12 <span style="color: #993399">0xEC</span>            <span style="font-style: italic"><span style="color: #9A1900">/* (we don't bother to list all 16 APPn's) */</span></span>
+<a name="line124">124: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> M_COM   <span style="color: #993399">0xFE</span>            <span style="font-style: italic"><span style="color: #9A1900">/* COMment */</span></span>
+<a name="line125">125: </a>
+<a name="line126">126: </a>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line128">128: </a><span style="font-style: italic"><span style="color: #9A1900"> * Find the next JPEG marker and return its marker code.</span></span>
+<a name="line129">129: </a><span style="font-style: italic"><span style="color: #9A1900"> * We expect at least one FF byte, possibly more if the compressor used FFs</span></span>
+<a name="line130">130: </a><span style="font-style: italic"><span style="color: #9A1900"> * to pad the file.</span></span>
+<a name="line131">131: </a><span style="font-style: italic"><span style="color: #9A1900"> * There could also be non-FF garbage between markers.  The treatment of such</span></span>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900"> * garbage is unspecified; we choose to skip over it but emit a warning msg.</span></span>
+<a name="line133">133: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: this routine must not be used after seeing SOS marker, since it will</span></span>
+<a name="line134">134: </a><span style="font-style: italic"><span style="color: #9A1900"> * not deal correctly with FF/00 sequences in the compressed image data...</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line136">136: </a>
+<a name="line137">137: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span>
+<a name="line138">138: </a><span style="font-weight: bold"><span style="color: #000000">next_marker</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line139">139: </a><span style="color: #FF0000">{</span>
+<a name="line140">140: </a>  <span style="color: #009900">int</span> c<span style="color: #990000">;</span>
+<a name="line141">141: </a>  <span style="color: #009900">int</span> discarded_bytes <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line142">142: </a>
+<a name="line143">143: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Find 0xFF byte; count and skip any non-FFs. */</span></span>
+<a name="line144">144: </a>  c <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line145">145: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>c <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line146">146: </a>    discarded_bytes<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line147">147: </a>    c <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line148">148: </a>  <span style="color: #FF0000">}</span>
+<a name="line149">149: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get marker code byte, swallowing any duplicate FF bytes.  Extra FFs</span></span>
+<a name="line150">150: </a><span style="font-style: italic"><span style="color: #9A1900">   * are legal as pad bytes, so don't count them in discarded_bytes.</span></span>
+<a name="line151">151: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line152">152: </a>  <span style="font-weight: bold"><span style="color: #0000FF">do</span></span> <span style="color: #FF0000">{</span>
+<a name="line153">153: </a>    c <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line154">154: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>c <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line155">155: </a>
+<a name="line156">156: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>discarded_bytes <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line157">157: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"Warning: garbage data found in JPEG file\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line158">158: </a>  <span style="color: #FF0000">}</span>
+<a name="line159">159: </a>
+<a name="line160">160: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> c<span style="color: #990000">;</span>
+<a name="line161">161: </a><span style="color: #FF0000">}</span>
+<a name="line162">162: </a>
+<a name="line163">163: </a>
+<a name="line164">164: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line165">165: </a><span style="font-style: italic"><span style="color: #9A1900"> * Read the initial marker, which should be SOI.</span></span>
+<a name="line166">166: </a><span style="font-style: italic"><span style="color: #9A1900"> * For a JFIF file, the first two bytes of the file should be literally</span></span>
+<a name="line167">167: </a><span style="font-style: italic"><span style="color: #9A1900"> * 0xFF M_SOI.  To be more general, we could use next_marker, but if the</span></span>
+<a name="line168">168: </a><span style="font-style: italic"><span style="color: #9A1900"> * input file weren't actually JPEG at all, next_marker might read the whole</span></span>
+<a name="line169">169: </a><span style="font-style: italic"><span style="color: #9A1900"> * file and then return a misleading error message...</span></span>
+<a name="line170">170: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line171">171: </a>
+<a name="line172">172: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span>
+<a name="line173">173: </a><span style="font-weight: bold"><span style="color: #000000">first_marker</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line174">174: </a><span style="color: #FF0000">{</span>
+<a name="line175">175: </a>  <span style="color: #009900">int</span> c1<span style="color: #990000">,</span> c2<span style="color: #990000">;</span>
+<a name="line176">176: </a>
+<a name="line177">177: </a>  c1 <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line178">178: </a>  c2 <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">NEXTBYTE</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line179">179: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>c1 <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0xFF</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> c2 <span style="color: #990000">!</span><span style="color: #990000">=</span> M_SOI<span style="color: #990000">)</span>
+<a name="line180">180: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Not a JPEG file"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line181">181: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> c2<span style="color: #990000">;</span>
+<a name="line182">182: </a><span style="color: #FF0000">}</span>
+<a name="line183">183: </a>
+<a name="line184">184: </a>
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line186">186: </a><span style="font-style: italic"><span style="color: #9A1900"> * Most types of marker are followed by a variable-length parameter segment.</span></span>
+<a name="line187">187: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine skips over the parameters for any marker we don't otherwise</span></span>
+<a name="line188">188: </a><span style="font-style: italic"><span style="color: #9A1900"> * want to process.</span></span>
+<a name="line189">189: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that we MUST skip the parameter segment explicitly in order not to</span></span>
+<a name="line190">190: </a><span style="font-style: italic"><span style="color: #9A1900"> * be fooled by 0xFF bytes that might appear within the parameter segment;</span></span>
+<a name="line191">191: </a><span style="font-style: italic"><span style="color: #9A1900"> * such bytes do NOT introduce new markers.</span></span>
+<a name="line192">192: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line193">193: </a>
+<a name="line194">194: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">void</span>
+<a name="line195">195: </a><span style="font-weight: bold"><span style="color: #000000">skip_variable</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line196">196: </a><span style="font-style: italic"><span style="color: #9A1900">/* Skip over an unknown or uninteresting variable-length marker */</span></span>
+<a name="line197">197: </a><span style="color: #FF0000">{</span>
+<a name="line198">198: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> length<span style="color: #990000">;</span>
+<a name="line199">199: </a>
+<a name="line200">200: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get the marker parameter length count */</span></span>
+<a name="line201">201: </a>  length <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line202">202: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Length includes itself, so must be at least 2 */</span></span>
+<a name="line203">203: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>length <span style="color: #990000">&lt;</span> <span style="color: #993399">2</span><span style="color: #990000">)</span>
+<a name="line204">204: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Erroneous JPEG marker length"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line205">205: </a>  length <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #993399">2</span><span style="color: #990000">;</span>
+<a name="line206">206: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Skip over the remaining bytes */</span></span>
+<a name="line207">207: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>length <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line208">208: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line209">209: </a>    length<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line210">210: </a>  <span style="color: #FF0000">}</span>
+<a name="line211">211: </a><span style="color: #FF0000">}</span>
+<a name="line212">212: </a>
+<a name="line213">213: </a>
+<a name="line214">214: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line215">215: </a><span style="font-style: italic"><span style="color: #9A1900"> * Process a COM marker.</span></span>
+<a name="line216">216: </a><span style="font-style: italic"><span style="color: #9A1900"> * We want to print out the marker contents as legible text;</span></span>
+<a name="line217">217: </a><span style="font-style: italic"><span style="color: #9A1900"> * we must guard against non-text junk and varying newline representations.</span></span>
+<a name="line218">218: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line219">219: </a>
+<a name="line220">220: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">void</span>
+<a name="line221">221: </a><span style="font-weight: bold"><span style="color: #000000">process_COM</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line222">222: </a><span style="color: #FF0000">{</span>
+<a name="line223">223: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> length<span style="color: #990000">;</span>
+<a name="line224">224: </a>  <span style="color: #009900">int</span> ch<span style="color: #990000">;</span>
+<a name="line225">225: </a>  <span style="color: #009900">int</span> lastch <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line226">226: </a>
+<a name="line227">227: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get the marker parameter length count */</span></span>
+<a name="line228">228: </a>  length <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line229">229: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Length includes itself, so must be at least 2 */</span></span>
+<a name="line230">230: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>length <span style="color: #990000">&lt;</span> <span style="color: #993399">2</span><span style="color: #990000">)</span>
+<a name="line231">231: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Erroneous JPEG marker length"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line232">232: </a>  length <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #993399">2</span><span style="color: #990000">;</span>
+<a name="line233">233: </a>
+<a name="line234">234: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>length <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line235">235: </a>    ch <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line236">236: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit the character in a readable form.</span></span>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900">     * Nonprintables are converted to \nnn form,</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900">     * while \ is converted to \\.</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900">     * Newlines in CR, CR/LF, or LF form will be printed as one newline.</span></span>
+<a name="line240">240: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line241">241: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ch <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\r'</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line242">242: </a>      <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line243">243: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ch <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\n'</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line244">244: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>lastch <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\r'</span><span style="color: #990000">)</span>
+<a name="line245">245: </a>        <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line246">246: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ch <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\\'</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line247">247: </a>      <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\\\\"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line248">248: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">isprint</span></span><span style="color: #990000">(</span>ch<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line249">249: </a>      <span style="font-weight: bold"><span style="color: #000000">putc</span></span><span style="color: #990000">(</span>ch<span style="color: #990000">,</span> stdout<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line250">250: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line251">251: </a>      <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\\%03o"</span><span style="color: #990000">,</span> ch<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line252">252: </a>    <span style="color: #FF0000">}</span>
+<a name="line253">253: </a>    lastch <span style="color: #990000">=</span> ch<span style="color: #990000">;</span>
+<a name="line254">254: </a>    length<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line255">255: </a>  <span style="color: #FF0000">}</span>
+<a name="line256">256: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line257">257: </a><span style="color: #FF0000">}</span>
+<a name="line258">258: </a>
+<a name="line259">259: </a>
+<a name="line260">260: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line261">261: </a><span style="font-style: italic"><span style="color: #9A1900"> * Process a SOFn marker.</span></span>
+<a name="line262">262: </a><span style="font-style: italic"><span style="color: #9A1900"> * This code is only needed if you want to know the image dimensions...</span></span>
+<a name="line263">263: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line264">264: </a>
+<a name="line265">265: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">void</span>
+<a name="line266">266: </a><span style="font-weight: bold"><span style="color: #000000">process_SOFn</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> marker<span style="color: #990000">)</span>
+<a name="line267">267: </a><span style="color: #FF0000">{</span>
+<a name="line268">268: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> length<span style="color: #990000">;</span>
+<a name="line269">269: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> image_height<span style="color: #990000">,</span> image_width<span style="color: #990000">;</span>
+<a name="line270">270: </a>  <span style="color: #009900">int</span> data_precision<span style="color: #990000">,</span> num_components<span style="color: #990000">;</span>
+<a name="line271">271: </a>  <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> process<span style="color: #990000">;</span>
+<a name="line272">272: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">;</span>
+<a name="line273">273: </a>
+<a name="line274">274: </a>  length <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* usual parameter length count */</span></span>
+<a name="line275">275: </a>
+<a name="line276">276: </a>  data_precision <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line277">277: </a>  image_height <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line278">278: </a>  image_width <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_2_bytes</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line279">279: </a>  num_components <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line280">280: </a>
+<a name="line281">281: </a>  <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>marker<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line282">282: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF0<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Baseline"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line283">283: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF1<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Extended sequential"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line284">284: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF2<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Progressive"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line285">285: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF3<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Lossless"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line286">286: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF5<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential sequential"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line287">287: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF6<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential progressive"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line288">288: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF7<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential lossless"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line289">289: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF9<span style="color: #990000">:</span>  process <span style="color: #990000">=</span> <span style="color: #FF0000">"Extended sequential, arithmetic coding"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line290">290: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF10<span style="color: #990000">:</span> process <span style="color: #990000">=</span> <span style="color: #FF0000">"Progressive, arithmetic coding"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line291">291: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF11<span style="color: #990000">:</span> process <span style="color: #990000">=</span> <span style="color: #FF0000">"Lossless, arithmetic coding"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line292">292: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF13<span style="color: #990000">:</span> process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential sequential, arithmetic coding"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line293">293: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF14<span style="color: #990000">:</span> process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential progressive, arithmetic coding"</span><span style="color: #990000">;</span> <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line294">294: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF15<span style="color: #990000">:</span> process <span style="color: #990000">=</span> <span style="color: #FF0000">"Differential lossless, arithmetic coding"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line295">295: </a>  <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>      process <span style="color: #990000">=</span> <span style="color: #FF0000">"Unknown"</span><span style="color: #990000">;</span>  <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line296">296: </a>  <span style="color: #FF0000">}</span>
+<a name="line297">297: </a>
+<a name="line298">298: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"JPEG image is %uw * %uh, %d color components, %d bits per sample\n"</span><span style="color: #990000">,</span>
+<a name="line299">299: </a>         image_width<span style="color: #990000">,</span> image_height<span style="color: #990000">,</span> num_components<span style="color: #990000">,</span> data_precision<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line300">300: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"JPEG process: %s\n"</span><span style="color: #990000">,</span> process<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line301">301: </a>
+<a name="line302">302: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>length <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #993399">8</span> <span style="color: #990000">+</span> num_components <span style="color: #990000">*</span> <span style="color: #993399">3</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line303">303: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Bogus SOF marker length"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line304">304: </a>
+<a name="line305">305: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> num_components<span style="color: #990000">;</span> ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line306">306: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Component ID code */</span></span>
+<a name="line307">307: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* H, V sampling factors */</span></span>
+<a name="line308">308: </a>    <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">read_1_byte</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Quantization table number */</span></span>
+<a name="line309">309: </a>  <span style="color: #FF0000">}</span>
+<a name="line310">310: </a><span style="color: #FF0000">}</span>
+<a name="line311">311: </a>
+<a name="line312">312: </a>
+<a name="line313">313: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line314">314: </a><span style="font-style: italic"><span style="color: #9A1900"> * Parse the marker stream until SOS or EOI is seen;</span></span>
+<a name="line315">315: </a><span style="font-style: italic"><span style="color: #9A1900"> * display any COM markers.</span></span>
+<a name="line316">316: </a><span style="font-style: italic"><span style="color: #9A1900"> * While the companion program wrjpgcom will always insert COM markers before</span></span>
+<a name="line317">317: </a><span style="font-style: italic"><span style="color: #9A1900"> * SOFn, other implementations might not, so we scan to SOS before stopping.</span></span>
+<a name="line318">318: </a><span style="font-style: italic"><span style="color: #9A1900"> * If we were only interested in the image dimensions, we would stop at SOFn.</span></span>
+<a name="line319">319: </a><span style="font-style: italic"><span style="color: #9A1900"> * (Conversely, if we only cared about COM markers, there would be no need</span></span>
+<a name="line320">320: </a><span style="font-style: italic"><span style="color: #9A1900"> * for special code to handle SOFn; we could treat it like other markers.)</span></span>
+<a name="line321">321: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line322">322: </a>
+<a name="line323">323: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span>
+<a name="line324">324: </a><span style="font-weight: bold"><span style="color: #000000">scan_JPEG_header</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> verbose<span style="color: #990000">)</span>
+<a name="line325">325: </a><span style="color: #FF0000">{</span>
+<a name="line326">326: </a>  <span style="color: #009900">int</span> marker<span style="color: #990000">;</span>
+<a name="line327">327: </a>
+<a name="line328">328: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Expect SOI at start of file */</span></span>
+<a name="line329">329: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">first_marker</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> M_SOI<span style="color: #990000">)</span>
+<a name="line330">330: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Expected SOI marker first"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line331">331: </a>
+<a name="line332">332: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Scan miscellaneous markers until we reach SOS. */</span></span>
+<a name="line333">333: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span><span style="color: #990000">;</span><span style="color: #990000">;</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line334">334: </a>    marker <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">next_marker</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line335">335: </a>    <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>marker<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line336">336: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Note that marker codes 0xC4, 0xC8, 0xCC are not, and must not be,</span></span>
+<a name="line337">337: </a><span style="font-style: italic"><span style="color: #9A1900">       * treated as SOFn.  C4 in particular is actually DHT.</span></span>
+<a name="line338">338: </a><span style="font-style: italic"><span style="color: #9A1900">       */</span></span>
+<a name="line339">339: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF0<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Baseline */</span></span>
+<a name="line340">340: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF1<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Extended sequential, Huffman */</span></span>
+<a name="line341">341: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF2<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Progressive, Huffman */</span></span>
+<a name="line342">342: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF3<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Lossless, Huffman */</span></span>
+<a name="line343">343: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF5<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Differential sequential, Huffman */</span></span>
+<a name="line344">344: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF6<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Differential progressive, Huffman */</span></span>
+<a name="line345">345: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF7<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Differential lossless, Huffman */</span></span>
+<a name="line346">346: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF9<span style="color: #990000">:</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Extended sequential, arithmetic */</span></span>
+<a name="line347">347: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF10<span style="color: #990000">:</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Progressive, arithmetic */</span></span>
+<a name="line348">348: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF11<span style="color: #990000">:</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Lossless, arithmetic */</span></span>
+<a name="line349">349: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF13<span style="color: #990000">:</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Differential sequential, arithmetic */</span></span>
+<a name="line350">350: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF14<span style="color: #990000">:</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Differential progressive, arithmetic */</span></span>
+<a name="line351">351: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOF15<span style="color: #990000">:</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Differential lossless, arithmetic */</span></span>
+<a name="line352">352: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>verbose<span style="color: #990000">)</span>
+<a name="line353">353: </a>        <span style="font-weight: bold"><span style="color: #000000">process_SOFn</span></span><span style="color: #990000">(</span>marker<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line354">354: </a>      <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line355">355: </a>        <span style="font-weight: bold"><span style="color: #000000">skip_variable</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line356">356: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line357">357: </a>
+<a name="line358">358: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_SOS<span style="color: #990000">:</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* stop before hitting compressed data */</span></span>
+<a name="line359">359: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> marker<span style="color: #990000">;</span>
+<a name="line360">360: </a>
+<a name="line361">361: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_EOI<span style="color: #990000">:</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* in case it's a tables-only JPEG stream */</span></span>
+<a name="line362">362: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> marker<span style="color: #990000">;</span>
+<a name="line363">363: </a>
+<a name="line364">364: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_COM<span style="color: #990000">:</span>
+<a name="line365">365: </a>      <span style="font-weight: bold"><span style="color: #000000">process_COM</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line366">366: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line367">367: </a>
+<a name="line368">368: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> M_APP12<span style="color: #990000">:</span>
+<a name="line369">369: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Some digital camera makers put useful textual information into</span></span>
+<a name="line370">370: </a><span style="font-style: italic"><span style="color: #9A1900">       * APP12 markers, so we print those out too when in -verbose mode.</span></span>
+<a name="line371">371: </a><span style="font-style: italic"><span style="color: #9A1900">       */</span></span>
+<a name="line372">372: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>verbose<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line373">373: </a>        <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"APP12 contains:\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line374">374: </a>        <span style="font-weight: bold"><span style="color: #000000">process_COM</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line375">375: </a>      <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line376">376: </a>        <span style="font-weight: bold"><span style="color: #000000">skip_variable</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line377">377: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line378">378: </a>
+<a name="line379">379: </a>    <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>                    <span style="font-style: italic"><span style="color: #9A1900">/* Anything else just gets skipped */</span></span>
+<a name="line380">380: </a>      <span style="font-weight: bold"><span style="color: #000000">skip_variable</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* we assume it has a parameter count... */</span></span>
+<a name="line381">381: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line382">382: </a>    <span style="color: #FF0000">}</span>
+<a name="line383">383: </a>  <span style="color: #FF0000">}</span> <span style="font-style: italic"><span style="color: #9A1900">/* end loop */</span></span>
+<a name="line384">384: </a><span style="color: #FF0000">}</span>
+<a name="line385">385: </a>
+<a name="line386">386: </a>
+<a name="line387">387: </a><span style="font-style: italic"><span style="color: #9A1900">/* Command line parsing code */</span></span>
+<a name="line388">388: </a>
+<a name="line389">389: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> progname<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* program name for error messages */</span></span>
+<a name="line390">390: </a>
+<a name="line391">391: </a>
+<a name="line392">392: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">void</span>
+<a name="line393">393: </a><span style="font-weight: bold"><span style="color: #000000">usage</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line394">394: </a><span style="font-style: italic"><span style="color: #9A1900">/* complain about bad command line */</span></span>
+<a name="line395">395: </a><span style="color: #FF0000">{</span>
+<a name="line396">396: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"rdjpgcom displays any textual comments in a JPEG file.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line397">397: </a>
+<a name="line398">398: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"Usage: %s [switches] [inputfile]\n"</span><span style="color: #990000">,</span> progname<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line399">399: </a>
+<a name="line400">400: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"Switches (names may be abbreviated):\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line401">401: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"  -verbose    Also display dimensions of JPEG image\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line402">402: </a>
+<a name="line403">403: </a>  <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span>EXIT_FAILURE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line404">404: </a><span style="color: #FF0000">}</span>
+<a name="line405">405: </a>
+<a name="line406">406: </a>
+<a name="line407">407: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span>
+<a name="line408">408: </a><span style="font-weight: bold"><span style="color: #000000">keymatch</span></span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span> arg<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> keyword<span style="color: #990000">,</span> <span style="color: #009900">int</span> minchars<span style="color: #990000">)</span>
+<a name="line409">409: </a><span style="font-style: italic"><span style="color: #9A1900">/* Case-insensitive matching of (possibly abbreviated) keyword switches. */</span></span>
+<a name="line410">410: </a><span style="font-style: italic"><span style="color: #9A1900">/* keyword is the constant keyword (must be lower case already), */</span></span>
+<a name="line411">411: </a><span style="font-style: italic"><span style="color: #9A1900">/* minchars is length of minimum legal abbreviation. */</span></span>
+<a name="line412">412: </a><span style="color: #FF0000">{</span>
+<a name="line413">413: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> ca<span style="color: #990000">,</span> ck<span style="color: #990000">;</span>
+<a name="line414">414: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> nmatched <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line415">415: </a>
+<a name="line416">416: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>ca <span style="color: #990000">=</span> <span style="color: #990000">*</span>arg<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\0'</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line417">417: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>ck <span style="color: #990000">=</span> <span style="color: #990000">*</span>keyword<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\0'</span><span style="color: #990000">)</span>
+<a name="line418">418: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* arg longer than keyword, no good */</span></span>
+<a name="line419">419: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">isupper</span></span><span style="color: #990000">(</span>ca<span style="color: #990000">)</span><span style="color: #990000">)</span>            <span style="font-style: italic"><span style="color: #9A1900">/* force arg to lcase (assume ck is already) */</span></span>
+<a name="line420">420: </a>      ca <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">tolower</span></span><span style="color: #990000">(</span>ca<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line421">421: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ca <span style="color: #990000">!</span><span style="color: #990000">=</span> ck<span style="color: #990000">)</span>
+<a name="line422">422: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* no good */</span></span>
+<a name="line423">423: </a>    nmatched<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* count matched characters */</span></span>
+<a name="line424">424: </a>  <span style="color: #FF0000">}</span>
+<a name="line425">425: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* reached end of argument; fail if it's too short for unique abbrev */</span></span>
+<a name="line426">426: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nmatched <span style="color: #990000">&lt;</span> minchars<span style="color: #990000">)</span>
+<a name="line427">427: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line428">428: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* A-OK */</span></span>
+<a name="line429">429: </a><span style="color: #FF0000">}</span>
+<a name="line430">430: </a>
+<a name="line431">431: </a>
+<a name="line432">432: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line433">433: </a><span style="font-style: italic"><span style="color: #9A1900"> * The main program.</span></span>
+<a name="line434">434: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line435">435: </a>
+<a name="line436">436: </a><span style="color: #009900">int</span>
+<a name="line437">437: </a><span style="font-weight: bold"><span style="color: #000000">main</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> argc<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">*</span>argv<span style="color: #990000">)</span>
+<a name="line438">438: </a><span style="color: #FF0000">{</span>
+<a name="line439">439: </a>  <span style="color: #009900">int</span> argn<span style="color: #990000">;</span>
+<a name="line440">440: </a>  <span style="color: #009900">char</span> <span style="color: #990000">*</span> arg<span style="color: #990000">;</span>
+<a name="line441">441: </a>  <span style="color: #009900">int</span> verbose <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line442">442: </a>
+<a name="line443">443: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* On Mac, fetch a command line. */</span></span>
+<a name="line444">444: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_CCOMMAND
+<a name="line445">445: </a>  argc <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">ccommand</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>argv<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line446">446: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line447">447: </a>
+<a name="line448">448: </a>  progname <span style="color: #990000">=</span> argv<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line449">449: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>progname <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL <span style="color: #990000">|</span><span style="color: #990000">|</span> progname<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line450">450: </a>    progname <span style="color: #990000">=</span> <span style="color: #FF0000">"rdjpgcom"</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* in case C library doesn't provide it */</span></span>
+<a name="line451">451: </a>
+<a name="line452">452: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Parse switches, if any */</span></span>
+<a name="line453">453: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>argn <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span> argn <span style="color: #990000">&lt;</span> argc<span style="color: #990000">;</span> argn<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line454">454: </a>    arg <span style="color: #990000">=</span> argv<span style="color: #990000">[</span>argn<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line455">455: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>arg<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'-'</span><span style="color: #990000">)</span>
+<a name="line456">456: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>                    <span style="font-style: italic"><span style="color: #9A1900">/* not switch, must be file name */</span></span>
+<a name="line457">457: </a>    arg<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>                      <span style="font-style: italic"><span style="color: #9A1900">/* advance over '-' */</span></span>
+<a name="line458">458: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">keymatch</span></span><span style="color: #990000">(</span>arg<span style="color: #990000">,</span> <span style="color: #FF0000">"verbose"</span><span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line459">459: </a>      verbose<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line460">460: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line461">461: </a>      <span style="font-weight: bold"><span style="color: #000000">usage</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line462">462: </a>  <span style="color: #FF0000">}</span>
+<a name="line463">463: </a>
+<a name="line464">464: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Open the input file. */</span></span>
+<a name="line465">465: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Unix style: expect zero or one file name */</span></span>
+<a name="line466">466: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>argn <span style="color: #990000">&lt;</span> argc<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line467">467: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"%s: only one input file\n"</span><span style="color: #990000">,</span> progname<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line468">468: </a>    <span style="font-weight: bold"><span style="color: #000000">usage</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line469">469: </a>  <span style="color: #FF0000">}</span>
+<a name="line470">470: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>argn <span style="color: #990000">&lt;</span> argc<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line471">471: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>infile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fopen</span></span><span style="color: #990000">(</span>argv<span style="color: #990000">[</span>argn<span style="color: #990000">]</span><span style="color: #990000">,</span> READ_BINARY<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line472">472: </a>      <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"%s: can't open %s\n"</span><span style="color: #990000">,</span> progname<span style="color: #990000">,</span> argv<span style="color: #990000">[</span>argn<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line473">473: </a>      <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span>EXIT_FAILURE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line474">474: </a>    <span style="color: #FF0000">}</span>
+<a name="line475">475: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line476">476: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* default input file is stdin */</span></span>
+<a name="line477">477: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_SETMODE              <span style="font-style: italic"><span style="color: #9A1900">/* need to hack file mode? */</span></span>
+<a name="line478">478: </a>    <span style="font-weight: bold"><span style="color: #000000">setmode</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">fileno</span></span><span style="color: #990000">(</span>stdin<span style="color: #990000">)</span><span style="color: #990000">,</span> O_BINARY<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line479">479: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line480">480: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_FDOPEN               <span style="font-style: italic"><span style="color: #9A1900">/* need to re-open in binary mode? */</span></span>
+<a name="line481">481: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>infile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fdopen</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">fileno</span></span><span style="color: #990000">(</span>stdin<span style="color: #990000">)</span><span style="color: #990000">,</span> READ_BINARY<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line482">482: </a>      <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>stderr<span style="color: #990000">,</span> <span style="color: #FF0000">"%s: can't open stdin\n"</span><span style="color: #990000">,</span> progname<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line483">483: </a>      <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span>EXIT_FAILURE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line484">484: </a>    <span style="color: #FF0000">}</span>
+<a name="line485">485: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line486">486: </a>    infile <span style="color: #990000">=</span> stdin<span style="color: #990000">;</span>
+<a name="line487">487: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line488">488: </a>  <span style="color: #FF0000">}</span>
+<a name="line489">489: </a>
+<a name="line490">490: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Scan the JPEG headers. */</span></span>
+<a name="line491">491: </a>  <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">scan_JPEG_header</span></span><span style="color: #990000">(</span>verbose<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line492">492: </a>
+<a name="line493">493: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* All done. */</span></span>
+<a name="line494">494: </a>  <span style="font-weight: bold"><span style="color: #000000">exit</span></span><span style="color: #990000">(</span>EXIT_SUCCESS<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line495">495: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* suppress no-return-value warnings */</span></span>
+<a name="line496">496: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

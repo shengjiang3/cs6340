@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jddctmgr.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jddctmgr.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains the inverse-DCT management logic.</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * This code selects a particular IDCT implementation to be used,</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * and it performs related housekeeping chores.  No code in this file</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * is executed per IDCT step, only during output pass setup.</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that the IDCT routines are responsible for performing coefficient</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * dequantization as well as the IDCT proper.  This module sets up the</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * dequantization multiplier table needed by the IDCT routine.</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line17">017: </a>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jdct.h"</span>         <span style="font-style: italic"><span style="color: #9A1900">/* Private declarations for DCT subsystem */</span></span>
+<a name="line22">022: </a>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * The decompressor input side (jdinput.c) saves away the appropriate</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * quantization table for each component at the start of the first scan</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> * involving that component.  (This is necessary in order to correctly</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * decode files that reuse Q-table slots.)</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * When we are ready to make an output pass, the saved Q-table is converted</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * to a multiplier table that will actually be used by the IDCT routine.</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * The multiplier table contents are IDCT-method-dependent.  To support</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * application changes in IDCT method between scans, we can remake the</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> * multiplier tables if necessary.</span></span>
+<a name="line34">034: </a><span style="font-style: italic"><span style="color: #9A1900"> * In buffered-image mode, the first output pass may occur before any data</span></span>
+<a name="line35">035: </a><span style="font-style: italic"><span style="color: #9A1900"> * has been seen for some components, and thus before their Q-tables have</span></span>
+<a name="line36">036: </a><span style="font-style: italic"><span style="color: #9A1900"> * been saved away.  To handle this case, multiplier tables are preset</span></span>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900"> * to zeroes; the result of the IDCT will be a neutral gray level.</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line39">039: </a>
+<a name="line40">040: </a>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900">/* Private subobject for this module */</span></span>
+<a name="line42">042: </a>
+<a name="line43">043: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line44">044: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_inverse_dct pub<span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* public fields */</span></span>
+<a name="line45">045: </a>
+<a name="line46">046: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This array contains the IDCT method code that each multiplier table</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900">   * is currently set up for, or -1 if it's not yet set up.</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900">   * The actual multiplier tables are pointed to by dct_table in the</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900">   * per-component comp_info structures.</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line51">051: </a>  <span style="color: #009900">int</span> cur_method<span style="color: #990000">[</span>MAX_COMPONENTS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line52">052: </a><span style="color: #FF0000">}</span> my_idct_controller<span style="color: #990000">;</span>
+<a name="line53">053: </a>
+<a name="line54">054: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> my_idct_controller <span style="color: #990000">*</span> my_idct_ptr<span style="color: #990000">;</span>
+<a name="line55">055: </a>
+<a name="line56">056: </a>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900">/* Allocated multiplier tables: big enough for any supported variant */</span></span>
+<a name="line58">058: </a>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">union</span></span> <span style="color: #FF0000">{</span>
+<a name="line60">060: </a>  ISLOW_MULT_TYPE islow_array<span style="color: #990000">[</span>DCTSIZE2<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_IFAST_SUPPORTED
+<a name="line62">062: </a>  IFAST_MULT_TYPE ifast_array<span style="color: #990000">[</span>DCTSIZE2<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line63">063: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_FLOAT_SUPPORTED
+<a name="line65">065: </a>  FLOAT_MULT_TYPE float_array<span style="color: #990000">[</span>DCTSIZE2<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line66">066: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line67">067: </a><span style="color: #FF0000">}</span> multiplier_table<span style="color: #990000">;</span>
+<a name="line68">068: </a>
+<a name="line69">069: </a>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900">/* The current scaled-IDCT routines require ISLOW-style multiplier tables,</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * so be sure to compile that code if either ISLOW or SCALING is requested.</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_ISLOW_SUPPORTED
+<a name="line74">074: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> PROVIDE_ISLOW_TABLES
+<a name="line75">075: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> IDCT_SCALING_SUPPORTED
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> PROVIDE_ISLOW_TABLES
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line79">079: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line80">080: </a>
+<a name="line81">081: </a>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> * Prepare for an output pass.</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> * Here we select the proper IDCT routine for each component and build</span></span>
+<a name="line85">085: </a><span style="font-style: italic"><span style="color: #9A1900"> * a matching multiplier table.</span></span>
+<a name="line86">086: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line87">087: </a>
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line89">089: </a><span style="font-weight: bold"><span style="color: #000000">start_pass</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line90">090: </a><span style="color: #FF0000">{</span>
+<a name="line91">091: </a>  my_idct_ptr idct <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_idct_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>idct<span style="color: #990000">;</span>
+<a name="line92">092: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> i<span style="color: #990000">;</span>
+<a name="line93">093: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line94">094: </a>  <span style="color: #009900">int</span> method <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line95">095: </a>  inverse_DCT_method_ptr method_ptr <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line96">096: </a>  JQUANT_TBL <span style="color: #990000">*</span> qtbl<span style="color: #990000">;</span>
+<a name="line97">097: </a>
+<a name="line98">098: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line99">099: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line100">100: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Select the proper IDCT routine for this component's scaling */</span></span>
+<a name="line101">101: </a>    <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> IDCT_SCALING_SUPPORTED
+<a name="line103">103: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> <span style="color: #993399">1</span><span style="color: #990000">:</span>
+<a name="line104">104: </a>      method_ptr <span style="color: #990000">=</span> jpeg_idct_1x1<span style="color: #990000">;</span>
+<a name="line105">105: </a>      method <span style="color: #990000">=</span> JDCT_ISLOW<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* jidctred uses islow-style table */</span></span>
+<a name="line106">106: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line107">107: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> <span style="color: #993399">2</span><span style="color: #990000">:</span>
+<a name="line108">108: </a>      method_ptr <span style="color: #990000">=</span> jpeg_idct_2x2<span style="color: #990000">;</span>
+<a name="line109">109: </a>      method <span style="color: #990000">=</span> JDCT_ISLOW<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* jidctred uses islow-style table */</span></span>
+<a name="line110">110: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line111">111: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> <span style="color: #993399">4</span><span style="color: #990000">:</span>
+<a name="line112">112: </a>      method_ptr <span style="color: #990000">=</span> jpeg_idct_4x4<span style="color: #990000">;</span>
+<a name="line113">113: </a>      method <span style="color: #990000">=</span> JDCT_ISLOW<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* jidctred uses islow-style table */</span></span>
+<a name="line114">114: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line116">116: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> DCTSIZE<span style="color: #990000">:</span>
+<a name="line117">117: </a>      <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_method<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line118">118: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_ISLOW_SUPPORTED
+<a name="line119">119: </a>      <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_ISLOW<span style="color: #990000">:</span>
+<a name="line120">120: </a>        method_ptr <span style="color: #990000">=</span> jpeg_idct_islow<span style="color: #990000">;</span>
+<a name="line121">121: </a>        method <span style="color: #990000">=</span> JDCT_ISLOW<span style="color: #990000">;</span>
+<a name="line122">122: </a>        <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line123">123: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line124">124: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_IFAST_SUPPORTED
+<a name="line125">125: </a>      <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_IFAST<span style="color: #990000">:</span>
+<a name="line126">126: </a>        method_ptr <span style="color: #990000">=</span> jpeg_idct_ifast<span style="color: #990000">;</span>
+<a name="line127">127: </a>        method <span style="color: #990000">=</span> JDCT_IFAST<span style="color: #990000">;</span>
+<a name="line128">128: </a>        <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line129">129: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_FLOAT_SUPPORTED
+<a name="line131">131: </a>      <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_FLOAT<span style="color: #990000">:</span>
+<a name="line132">132: </a>        method_ptr <span style="color: #990000">=</span> jpeg_idct_float<span style="color: #990000">;</span>
+<a name="line133">133: </a>        method <span style="color: #990000">=</span> JDCT_FLOAT<span style="color: #990000">;</span>
+<a name="line134">134: </a>        <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line135">135: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line136">136: </a>      <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>
+<a name="line137">137: </a>        <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NOT_COMPILED<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line138">138: </a>        <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line139">139: </a>      <span style="color: #FF0000">}</span>
+<a name="line140">140: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line141">141: </a>    <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>
+<a name="line142">142: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_DCTSIZE<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line143">143: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line144">144: </a>    <span style="color: #FF0000">}</span>
+<a name="line145">145: </a>    idct<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>inverse_DCT<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> method_ptr<span style="color: #990000">;</span>
+<a name="line146">146: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Create multiplier table from quant table.</span></span>
+<a name="line147">147: </a><span style="font-style: italic"><span style="color: #9A1900">     * However, we can skip this if the component is uninteresting</span></span>
+<a name="line148">148: </a><span style="font-style: italic"><span style="color: #9A1900">     * or if we already built the table.  Also, if no quant table</span></span>
+<a name="line149">149: </a><span style="font-style: italic"><span style="color: #9A1900">     * has yet been saved for the component, we leave the</span></span>
+<a name="line150">150: </a><span style="font-style: italic"><span style="color: #9A1900">     * multiplier table all-zero; we'll be reading zeroes from the</span></span>
+<a name="line151">151: </a><span style="font-style: italic"><span style="color: #9A1900">     * coefficient controller's buffer anyway.</span></span>
+<a name="line152">152: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line153">153: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>component_needed <span style="color: #990000">|</span><span style="color: #990000">|</span> idct<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_method<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> method<span style="color: #990000">)</span>
+<a name="line154">154: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line155">155: </a>    qtbl <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_table<span style="color: #990000">;</span>
+<a name="line156">156: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>qtbl <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>           <span style="font-style: italic"><span style="color: #9A1900">/* happens if no data yet for component */</span></span>
+<a name="line157">157: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line158">158: </a>    idct<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_method<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> method<span style="color: #990000">;</span>
+<a name="line159">159: </a>    <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>method<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line160">160: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> PROVIDE_ISLOW_TABLES
+<a name="line161">161: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_ISLOW<span style="color: #990000">:</span>
+<a name="line162">162: </a>      <span style="color: #FF0000">{</span>
+<a name="line163">163: </a>        <span style="font-style: italic"><span style="color: #9A1900">/* For LL&amp;M IDCT method, multipliers are equal to raw quantization</span></span>
+<a name="line164">164: </a><span style="font-style: italic"><span style="color: #9A1900">         * coefficients, but are stored as ints to ensure access efficiency.</span></span>
+<a name="line165">165: </a><span style="font-style: italic"><span style="color: #9A1900">         */</span></span>
+<a name="line166">166: </a>        ISLOW_MULT_TYPE <span style="color: #990000">*</span> ismtbl <span style="color: #990000">=</span> <span style="color: #990000">(</span>ISLOW_MULT_TYPE <span style="color: #990000">*</span><span style="color: #990000">)</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_table<span style="color: #990000">;</span>
+<a name="line167">167: </a>        <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> DCTSIZE2<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line168">168: </a>          ismtbl<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>ISLOW_MULT_TYPE<span style="color: #990000">)</span> qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quantval<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line169">169: </a>        <span style="color: #FF0000">}</span>
+<a name="line170">170: </a>      <span style="color: #FF0000">}</span>
+<a name="line171">171: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line172">172: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line173">173: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_IFAST_SUPPORTED
+<a name="line174">174: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_IFAST<span style="color: #990000">:</span>
+<a name="line175">175: </a>      <span style="color: #FF0000">{</span>
+<a name="line176">176: </a>        <span style="font-style: italic"><span style="color: #9A1900">/* For AA&amp;N IDCT method, multipliers are equal to quantization</span></span>
+<a name="line177">177: </a><span style="font-style: italic"><span style="color: #9A1900">         * coefficients scaled by scalefactor[row]*scalefactor[col], where</span></span>
+<a name="line178">178: </a><span style="font-style: italic"><span style="color: #9A1900">         *   scalefactor[0] = 1</span></span>
+<a name="line179">179: </a><span style="font-style: italic"><span style="color: #9A1900">         *   scalefactor[k] = cos(k*PI/16) * sqrt(2)    for k=1..7</span></span>
+<a name="line180">180: </a><span style="font-style: italic"><span style="color: #9A1900">         * For integer operation, the multiplier table is to be scaled by</span></span>
+<a name="line181">181: </a><span style="font-style: italic"><span style="color: #9A1900">         * IFAST_SCALE_BITS.</span></span>
+<a name="line182">182: </a><span style="font-style: italic"><span style="color: #9A1900">         */</span></span>
+<a name="line183">183: </a>        IFAST_MULT_TYPE <span style="color: #990000">*</span> ifmtbl <span style="color: #990000">=</span> <span style="color: #990000">(</span>IFAST_MULT_TYPE <span style="color: #990000">*</span><span style="color: #990000">)</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_table<span style="color: #990000">;</span>
+<a name="line184">184: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CONST_BITS <span style="color: #993399">14</span>
+<a name="line185">185: </a>        <span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> INT16 aanscales<span style="color: #990000">[</span>DCTSIZE2<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #FF0000">{</span>
+<a name="line186">186: </a>          <span style="font-style: italic"><span style="color: #9A1900">/* precomputed values scaled up by 14 bits */</span></span>
+<a name="line187">187: </a>          <span style="color: #993399">16384</span><span style="color: #990000">,</span> <span style="color: #993399">22725</span><span style="color: #990000">,</span> <span style="color: #993399">21407</span><span style="color: #990000">,</span> <span style="color: #993399">19266</span><span style="color: #990000">,</span> <span style="color: #993399">16384</span><span style="color: #990000">,</span> <span style="color: #993399">12873</span><span style="color: #990000">,</span>  <span style="color: #993399">8867</span><span style="color: #990000">,</span>  <span style="color: #993399">4520</span><span style="color: #990000">,</span>
+<a name="line188">188: </a>          <span style="color: #993399">22725</span><span style="color: #990000">,</span> <span style="color: #993399">31521</span><span style="color: #990000">,</span> <span style="color: #993399">29692</span><span style="color: #990000">,</span> <span style="color: #993399">26722</span><span style="color: #990000">,</span> <span style="color: #993399">22725</span><span style="color: #990000">,</span> <span style="color: #993399">17855</span><span style="color: #990000">,</span> <span style="color: #993399">12299</span><span style="color: #990000">,</span>  <span style="color: #993399">6270</span><span style="color: #990000">,</span>
+<a name="line189">189: </a>          <span style="color: #993399">21407</span><span style="color: #990000">,</span> <span style="color: #993399">29692</span><span style="color: #990000">,</span> <span style="color: #993399">27969</span><span style="color: #990000">,</span> <span style="color: #993399">25172</span><span style="color: #990000">,</span> <span style="color: #993399">21407</span><span style="color: #990000">,</span> <span style="color: #993399">16819</span><span style="color: #990000">,</span> <span style="color: #993399">11585</span><span style="color: #990000">,</span>  <span style="color: #993399">5906</span><span style="color: #990000">,</span>
+<a name="line190">190: </a>          <span style="color: #993399">19266</span><span style="color: #990000">,</span> <span style="color: #993399">26722</span><span style="color: #990000">,</span> <span style="color: #993399">25172</span><span style="color: #990000">,</span> <span style="color: #993399">22654</span><span style="color: #990000">,</span> <span style="color: #993399">19266</span><span style="color: #990000">,</span> <span style="color: #993399">15137</span><span style="color: #990000">,</span> <span style="color: #993399">10426</span><span style="color: #990000">,</span>  <span style="color: #993399">5315</span><span style="color: #990000">,</span>
+<a name="line191">191: </a>          <span style="color: #993399">16384</span><span style="color: #990000">,</span> <span style="color: #993399">22725</span><span style="color: #990000">,</span> <span style="color: #993399">21407</span><span style="color: #990000">,</span> <span style="color: #993399">19266</span><span style="color: #990000">,</span> <span style="color: #993399">16384</span><span style="color: #990000">,</span> <span style="color: #993399">12873</span><span style="color: #990000">,</span>  <span style="color: #993399">8867</span><span style="color: #990000">,</span>  <span style="color: #993399">4520</span><span style="color: #990000">,</span>
+<a name="line192">192: </a>          <span style="color: #993399">12873</span><span style="color: #990000">,</span> <span style="color: #993399">17855</span><span style="color: #990000">,</span> <span style="color: #993399">16819</span><span style="color: #990000">,</span> <span style="color: #993399">15137</span><span style="color: #990000">,</span> <span style="color: #993399">12873</span><span style="color: #990000">,</span> <span style="color: #993399">10114</span><span style="color: #990000">,</span>  <span style="color: #993399">6967</span><span style="color: #990000">,</span>  <span style="color: #993399">3552</span><span style="color: #990000">,</span>
+<a name="line193">193: </a>           <span style="color: #993399">8867</span><span style="color: #990000">,</span> <span style="color: #993399">12299</span><span style="color: #990000">,</span> <span style="color: #993399">11585</span><span style="color: #990000">,</span> <span style="color: #993399">10426</span><span style="color: #990000">,</span>  <span style="color: #993399">8867</span><span style="color: #990000">,</span>  <span style="color: #993399">6967</span><span style="color: #990000">,</span>  <span style="color: #993399">4799</span><span style="color: #990000">,</span>  <span style="color: #993399">2446</span><span style="color: #990000">,</span>
+<a name="line194">194: </a>           <span style="color: #993399">4520</span><span style="color: #990000">,</span>  <span style="color: #993399">6270</span><span style="color: #990000">,</span>  <span style="color: #993399">5906</span><span style="color: #990000">,</span>  <span style="color: #993399">5315</span><span style="color: #990000">,</span>  <span style="color: #993399">4520</span><span style="color: #990000">,</span>  <span style="color: #993399">3552</span><span style="color: #990000">,</span>  <span style="color: #993399">2446</span><span style="color: #990000">,</span>  <span style="color: #993399">1247</span>
+<a name="line195">195: </a>        <span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line196">196: </a>        SHIFT_TEMPS
+<a name="line197">197: </a>
+<a name="line198">198: </a>        <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> DCTSIZE2<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line199">199: </a>          ifmtbl<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>IFAST_MULT_TYPE<span style="color: #990000">)</span>
+<a name="line200">200: </a>            <span style="font-weight: bold"><span style="color: #000000">DESCALE</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">MULTIPLY16V16</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quantval<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">,</span>
+<a name="line201">201: </a>                                  <span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> aanscales<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">,</span>
+<a name="line202">202: </a>                    CONST_BITS<span style="color: #990000">-</span>IFAST_SCALE_BITS<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line203">203: </a>        <span style="color: #FF0000">}</span>
+<a name="line204">204: </a>      <span style="color: #FF0000">}</span>
+<a name="line205">205: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line206">206: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line207">207: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_FLOAT_SUPPORTED
+<a name="line208">208: </a>    <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JDCT_FLOAT<span style="color: #990000">:</span>
+<a name="line209">209: </a>      <span style="color: #FF0000">{</span>
+<a name="line210">210: </a>        <span style="font-style: italic"><span style="color: #9A1900">/* For float AA&amp;N IDCT method, multipliers are equal to quantization</span></span>
+<a name="line211">211: </a><span style="font-style: italic"><span style="color: #9A1900">         * coefficients scaled by scalefactor[row]*scalefactor[col], where</span></span>
+<a name="line212">212: </a><span style="font-style: italic"><span style="color: #9A1900">         *   scalefactor[0] = 1</span></span>
+<a name="line213">213: </a><span style="font-style: italic"><span style="color: #9A1900">         *   scalefactor[k] = cos(k*PI/16) * sqrt(2)    for k=1..7</span></span>
+<a name="line214">214: </a><span style="font-style: italic"><span style="color: #9A1900">         */</span></span>
+<a name="line215">215: </a>        FLOAT_MULT_TYPE <span style="color: #990000">*</span> fmtbl <span style="color: #990000">=</span> <span style="color: #990000">(</span>FLOAT_MULT_TYPE <span style="color: #990000">*</span><span style="color: #990000">)</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_table<span style="color: #990000">;</span>
+<a name="line216">216: </a>        <span style="color: #009900">int</span> row<span style="color: #990000">,</span> col<span style="color: #990000">;</span>
+<a name="line217">217: </a>        <span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">double</span> aanscalefactor<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #FF0000">{</span>
+<a name="line218">218: </a>          <span style="color: #993399">1.0</span><span style="color: #990000">,</span> <span style="color: #993399">1.387039845</span><span style="color: #990000">,</span> <span style="color: #993399">1.306562965</span><span style="color: #990000">,</span> <span style="color: #993399">1.175875602</span><span style="color: #990000">,</span>
+<a name="line219">219: </a>          <span style="color: #993399">1.0</span><span style="color: #990000">,</span> <span style="color: #993399">0.785694958</span><span style="color: #990000">,</span> <span style="color: #993399">0.541196100</span><span style="color: #990000">,</span> <span style="color: #993399">0.275899379</span>
+<a name="line220">220: </a>        <span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line221">221: </a>
+<a name="line222">222: </a>        i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line223">223: </a>        <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>row <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> row <span style="color: #990000">&lt;</span> DCTSIZE<span style="color: #990000">;</span> row<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line224">224: </a>          <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>col <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> col <span style="color: #990000">&lt;</span> DCTSIZE<span style="color: #990000">;</span> col<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line225">225: </a>            fmtbl<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>FLOAT_MULT_TYPE<span style="color: #990000">)</span>
+<a name="line226">226: </a>              <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">double</span><span style="color: #990000">)</span> qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quantval<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">*</span>
+<a name="line227">227: </a>               aanscalefactor<span style="color: #990000">[</span>row<span style="color: #990000">]</span> <span style="color: #990000">*</span> aanscalefactor<span style="color: #990000">[</span>col<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line228">228: </a>            i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line229">229: </a>          <span style="color: #FF0000">}</span>
+<a name="line230">230: </a>        <span style="color: #FF0000">}</span>
+<a name="line231">231: </a>      <span style="color: #FF0000">}</span>
+<a name="line232">232: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line233">233: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line234">234: </a>    <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>
+<a name="line235">235: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NOT_COMPILED<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line236">236: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line237">237: </a>    <span style="color: #FF0000">}</span>
+<a name="line238">238: </a>  <span style="color: #FF0000">}</span>
+<a name="line239">239: </a><span style="color: #FF0000">}</span>
+<a name="line240">240: </a>
+<a name="line241">241: </a>
+<a name="line242">242: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line243">243: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize IDCT manager.</span></span>
+<a name="line244">244: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line245">245: </a>
+<a name="line246">246: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line247">247: </a><span style="font-weight: bold"><span style="color: #000000">jinit_inverse_dct</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line248">248: </a><span style="color: #FF0000">{</span>
+<a name="line249">249: </a>  my_idct_ptr idct<span style="color: #990000">;</span>
+<a name="line250">250: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">;</span>
+<a name="line251">251: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line252">252: </a>
+<a name="line253">253: </a>  idct <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_idct_ptr<span style="color: #990000">)</span>
+<a name="line254">254: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line255">255: </a>                                <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>my_idct_controller<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line256">256: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>idct <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_inverse_dct <span style="color: #990000">*</span><span style="color: #990000">)</span> idct<span style="color: #990000">;</span>
+<a name="line257">257: </a>  idct<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>start_pass <span style="color: #990000">=</span> start_pass<span style="color: #990000">;</span>
+<a name="line258">258: </a>
+<a name="line259">259: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line260">260: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line261">261: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Allocate and pre-zero a multiplier table for each component */</span></span>
+<a name="line262">262: </a>    compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_table <span style="color: #990000">=</span>
+<a name="line263">263: </a>      <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line264">264: </a>                                  <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>multiplier_table<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line265">265: </a>    <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dct_table<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>multiplier_table<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line266">266: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Mark multiplier table not yet set up for any method */</span></span>
+<a name="line267">267: </a>    idct<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_method<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line268">268: </a>  <span style="color: #FF0000">}</span>
+<a name="line269">269: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

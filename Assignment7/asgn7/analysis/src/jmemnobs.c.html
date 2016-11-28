@@ -1,0 +1,128 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jmemnobs.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jmemnobs.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1992-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file provides a really simple implementation of the system-</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * dependent portion of the JPEG memory manager.  This implementation</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * assumes that no backing-store files are needed: all required space</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * can be obtained from malloc().</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * This is very portable in the sense that it'll compile on almost anything,</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * but you'd better have lots of main memory (or virtual memory) if you want</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * to process big images.</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that the max_memory_to_use option is ignored by this implementation.</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line17">017: </a>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jmemsys.h"</span>              <span style="font-style: italic"><span style="color: #9A1900">/* import the system-dependent declarations */</span></span>
+<a name="line22">022: </a>
+<a name="line23">023: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> HAVE_STDLIB_H           <span style="font-style: italic"><span style="color: #9A1900">/* &lt;stdlib.h&gt; should declare malloc(),free() */</span></span>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> malloc <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>size_t size<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> free <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span>ptr<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line27">027: </a>
+<a name="line28">028: </a>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * Memory allocation and freeing are controlled by the regular library</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * routines malloc() and free().</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line33">033: </a>
+<a name="line34">034: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line36">036: </a><span style="color: #FF0000">{</span>
+<a name="line37">037: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line38">038: </a><span style="color: #FF0000">}</span>
+<a name="line39">039: </a>
+<a name="line40">040: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line41">041: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line42">042: </a><span style="color: #FF0000">{</span>
+<a name="line43">043: </a>  <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line44">044: </a><span style="color: #FF0000">}</span>
+<a name="line45">045: </a>
+<a name="line46">046: </a>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> * "Large" objects are treated the same as "small" ones.</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: although we include FAR keywords in the routine declarations,</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> * this file won't actually work in 80x86 small/medium model; at least,</span></span>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900"> * you probably won't be able to process useful-size images in only 64KB.</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line53">053: </a>
+<a name="line54">054: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line55">055: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line56">056: </a><span style="color: #FF0000">{</span>
+<a name="line57">057: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line58">058: </a><span style="color: #FF0000">}</span>
+<a name="line59">059: </a>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line62">062: </a><span style="color: #FF0000">{</span>
+<a name="line63">063: </a>  <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line64">064: </a><span style="color: #FF0000">}</span>
+<a name="line65">065: </a>
+<a name="line66">066: </a>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine computes the total memory space available for allocation.</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * Here we always say, "we got all you want bud!"</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_available</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">long</span> min_bytes_needed<span style="color: #990000">,</span>
+<a name="line74">074: </a>                    <span style="color: #009900">long</span> max_bytes_needed<span style="color: #990000">,</span> <span style="color: #009900">long</span> already_allocated<span style="color: #990000">)</span>
+<a name="line75">075: </a><span style="color: #FF0000">{</span>
+<a name="line76">076: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> max_bytes_needed<span style="color: #990000">;</span>
+<a name="line77">077: </a><span style="color: #FF0000">}</span>
+<a name="line78">078: </a>
+<a name="line79">079: </a>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> * Backing store (temporary file) management.</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> * Since jpeg_mem_available always promised the moon,</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> * this should never be called and we can just error out.</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line85">085: </a>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_open_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line88">088: </a>                         <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line89">089: </a><span style="color: #FF0000">{</span>
+<a name="line90">090: </a>  <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NO_BACKING_STORE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line91">091: </a><span style="color: #FF0000">}</span>
+<a name="line92">092: </a>
+<a name="line93">093: </a>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * These routines take care of any system-dependent initialization and</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * cleanup required.  Here, there isn't any.</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line98">098: </a>
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line100">100: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_init</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line101">101: </a><span style="color: #FF0000">{</span>
+<a name="line102">102: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* just set max_memory_to_use to 0 */</span></span>
+<a name="line103">103: </a><span style="color: #FF0000">}</span>
+<a name="line104">104: </a>
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_term</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line107">107: </a><span style="color: #FF0000">{</span>
+<a name="line108">108: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* no work */</span></span>
+<a name="line109">109: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

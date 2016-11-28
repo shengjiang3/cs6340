@@ -1,0 +1,220 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jdhuff.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jdhuff.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains declarations for Huffman entropy decoding routines</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * that are shared between the sequential decoder (jdhuff.c) and the</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * progressive decoder (jdphuff.c).  No other modules need to see these.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line12">012: </a>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line14">014: </a>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_make_d_derived_tbl jMkDDerived
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_fill_bit_buffer    jFilBitBuf
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_huff_decode        jHufDecode
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line20">020: </a>
+<a name="line21">021: </a>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900">/* Derived data constructed for each Huffman table */</span></span>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HUFF_LOOKAHEAD  <span style="color: #993399">8</span>       <span style="font-style: italic"><span style="color: #9A1900">/* # of bits of lookahead */</span></span>
+<a name="line25">025: </a>
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line27">027: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Basic tables: (element [0] of each array is unused) */</span></span>
+<a name="line28">028: </a>  INT32 maxcode<span style="color: #990000">[</span><span style="color: #993399">18</span><span style="color: #990000">]</span><span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* largest code of length k (-1 if none) */</span></span>
+<a name="line29">029: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* (maxcode[17] is a sentinel to ensure jpeg_huff_decode terminates) */</span></span>
+<a name="line30">030: </a>  INT32 valoffset<span style="color: #990000">[</span><span style="color: #993399">17</span><span style="color: #990000">]</span><span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* huffval[] offset for codes of length k */</span></span>
+<a name="line31">031: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* valoffset[k] = huffval[] index of 1st symbol of code length k, less</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900">   * the smallest code of length k; so given a code of length k, the</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900">   * corresponding symbol is huffval[code + valoffset[k]]</span></span>
+<a name="line34">034: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line35">035: </a>
+<a name="line36">036: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Link to public Huffman table (needed only in jpeg_huff_decode) */</span></span>
+<a name="line37">037: </a>  JHUFF_TBL <span style="color: #990000">*</span>pub<span style="color: #990000">;</span>
+<a name="line38">038: </a>
+<a name="line39">039: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Lookahead tables: indexed by the next HUFF_LOOKAHEAD bits of</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900">   * the input data stream.  If the next Huffman code is no more</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900">   * than HUFF_LOOKAHEAD bits long, we can obtain its length and</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900">   * the corresponding symbol directly from these tables.</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line44">044: </a>  <span style="color: #009900">int</span> look_nbits<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span>HUFF_LOOKAHEAD<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* # bits, or 0 if too long */</span></span>
+<a name="line45">045: </a>  UINT8 look_sym<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span>HUFF_LOOKAHEAD<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* symbol, or unused */</span></span>
+<a name="line46">046: </a><span style="color: #FF0000">}</span> d_derived_tbl<span style="color: #990000">;</span>
+<a name="line47">047: </a>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900">/* Expand a Huffman table definition into the derived format */</span></span>
+<a name="line49">049: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_make_d_derived_tbl
+<a name="line50">050: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> boolean isDC<span style="color: #990000">,</span> <span style="color: #009900">int</span> tblno<span style="color: #990000">,</span>
+<a name="line51">051: </a>             d_derived_tbl <span style="color: #990000">*</span><span style="color: #990000">*</span> pdtbl<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line52">052: </a>
+<a name="line53">053: </a>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * Fetching the next N bits from the input stream is a time-critical operation</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> * for the Huffman decoders.  We implement it with a combination of inline</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * macros and out-of-line subroutines.  Note that N (the number of bits</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * demanded at one time) never exceeds 15 for JPEG use.</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line60">060: </a><span style="font-style: italic"><span style="color: #9A1900"> * We read source bytes into get_buffer and dole out bits as needed.</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900"> * If get_buffer already contains enough bits, they are fetched in-line</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * by the macros CHECK_BIT_BUFFER and GET_BITS.  When there aren't enough</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> * bits, jpeg_fill_bit_buffer is called; it will attempt to fill get_buffer</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> * as full as possible (not just to the number of bits needed; this</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * prefetching reduces the overhead cost of calling jpeg_fill_bit_buffer).</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that jpeg_fill_bit_buffer may return FALSE to indicate suspension.</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * On TRUE return, jpeg_fill_bit_buffer guarantees that get_buffer contains</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * at least the requested number of bits --- dummy zeroes are inserted if</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * necessary.</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> INT32 bit_buf_type<span style="color: #990000">;</span>     <span style="font-style: italic"><span style="color: #9A1900">/* type of bit-extraction buffer */</span></span>
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> BIT_BUF_SIZE  <span style="color: #993399">32</span>        <span style="font-style: italic"><span style="color: #9A1900">/* size of buffer in bits */</span></span>
+<a name="line74">074: </a>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900">/* If long is &gt; 32 bits on your machine, and shifting/masking longs is</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * reasonably fast, making bit_buf_type be long and setting BIT_BUF_SIZE</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> * appropriately should be a win.  Unfortunately we can't define the size</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> * with something like  #define BIT_BUF_SIZE (sizeof(bit_buf_type)*8)</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900"> * because not all machines measure sizeof in 8-bit bytes.</span></span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line81">081: </a>
+<a name="line82">082: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Bitreading state saved across MCUs */</span></span>
+<a name="line83">083: </a>  bit_buf_type get_buffer<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* current bit-extraction buffer */</span></span>
+<a name="line84">084: </a>  <span style="color: #009900">int</span> bits_left<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* # of unused bits in it */</span></span>
+<a name="line85">085: </a><span style="color: #FF0000">}</span> bitread_perm_state<span style="color: #990000">;</span>
+<a name="line86">086: </a>
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>                <span style="font-style: italic"><span style="color: #9A1900">/* Bitreading working state within an MCU */</span></span>
+<a name="line88">088: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Current data source location */</span></span>
+<a name="line89">089: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We need a copy, rather than munging the original, in case of suspension */</span></span>
+<a name="line90">090: </a>  <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> JOCTET <span style="color: #990000">*</span> next_input_byte<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* =&gt; next byte to read from source */</span></span>
+<a name="line91">091: </a>  size_t bytes_in_buffer<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* # of bytes remaining in source buffer */</span></span>
+<a name="line92">092: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Bit input buffer --- note these values are kept in register variables,</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900">   * not in this struct, inside the inner loops.</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line95">095: </a>  bit_buf_type get_buffer<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* current bit-extraction buffer */</span></span>
+<a name="line96">096: </a>  <span style="color: #009900">int</span> bits_left<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* # of unused bits in it */</span></span>
+<a name="line97">097: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Pointer needed by jpeg_fill_bit_buffer. */</span></span>
+<a name="line98">098: </a>  j_decompress_ptr cinfo<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* back link to decompress master record */</span></span>
+<a name="line99">099: </a><span style="color: #FF0000">}</span> bitread_working_state<span style="color: #990000">;</span>
+<a name="line100">100: </a>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900">/* Macros to declare and load/save bitread local variables. */</span></span>
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> BITREAD_STATE_VARS  <span style="color: #990000">\</span>
+<a name="line103">103: </a>        <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> bit_buf_type get_buffer<span style="color: #990000">;</span>  <span style="color: #990000">\</span>
+<a name="line104">104: </a>        <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> bits_left<span style="color: #990000">;</span>  <span style="color: #990000">\</span>
+<a name="line105">105: </a>        bitread_working_state br_state
+<a name="line106">106: </a>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">BITREAD_LOAD_STATE</span></span><span style="color: #990000">(</span>cinfop<span style="color: #990000">,</span>permstate<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line108">108: </a>        br_state<span style="color: #990000">.</span>cinfo <span style="color: #990000">=</span> cinfop<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line109">109: </a>        br_state<span style="color: #990000">.</span>next_input_byte <span style="color: #990000">=</span> cinfop<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>src<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_input_byte<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line110">110: </a>        br_state<span style="color: #990000">.</span>bytes_in_buffer <span style="color: #990000">=</span> cinfop<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>src<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bytes_in_buffer<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line111">111: </a>        get_buffer <span style="color: #990000">=</span> permstate<span style="color: #990000">.</span>get_buffer<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line112">112: </a>        bits_left <span style="color: #990000">=</span> permstate<span style="color: #990000">.</span>bits_left<span style="color: #990000">;</span>
+<a name="line113">113: </a>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">BITREAD_SAVE_STATE</span></span><span style="color: #990000">(</span>cinfop<span style="color: #990000">,</span>permstate<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line115">115: </a>        cinfop<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>src<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_input_byte <span style="color: #990000">=</span> br_state<span style="color: #990000">.</span>next_input_byte<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line116">116: </a>        cinfop<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>src<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bytes_in_buffer <span style="color: #990000">=</span> br_state<span style="color: #990000">.</span>bytes_in_buffer<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line117">117: </a>        permstate<span style="color: #990000">.</span>get_buffer <span style="color: #990000">=</span> get_buffer<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line118">118: </a>        permstate<span style="color: #990000">.</span>bits_left <span style="color: #990000">=</span> bits_left
+<a name="line119">119: </a>
+<a name="line120">120: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line121">121: </a><span style="font-style: italic"><span style="color: #9A1900"> * These macros provide the in-line portion of bit fetching.</span></span>
+<a name="line122">122: </a><span style="font-style: italic"><span style="color: #9A1900"> * Use CHECK_BIT_BUFFER to ensure there are N bits in get_buffer</span></span>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900"> * before using GET_BITS, PEEK_BITS, or DROP_BITS.</span></span>
+<a name="line124">124: </a><span style="font-style: italic"><span style="color: #9A1900"> * The variables get_buffer and bits_left are assumed to be locals,</span></span>
+<a name="line125">125: </a><span style="font-style: italic"><span style="color: #9A1900"> * but the state struct might not be (jpeg_huff_decode needs this).</span></span>
+<a name="line126">126: </a><span style="font-style: italic"><span style="color: #9A1900"> *      CHECK_BIT_BUFFER(state,n,action);</span></span>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900"> *              Ensure there are N bits in get_buffer; if suspend, take action.</span></span>
+<a name="line128">128: </a><span style="font-style: italic"><span style="color: #9A1900"> *      val = GET_BITS(n);</span></span>
+<a name="line129">129: </a><span style="font-style: italic"><span style="color: #9A1900"> *              Fetch next N bits.</span></span>
+<a name="line130">130: </a><span style="font-style: italic"><span style="color: #9A1900"> *      val = PEEK_BITS(n);</span></span>
+<a name="line131">131: </a><span style="font-style: italic"><span style="color: #9A1900"> *              Fetch next N bits without removing them from the buffer.</span></span>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900"> *      DROP_BITS(n);</span></span>
+<a name="line133">133: </a><span style="font-style: italic"><span style="color: #9A1900"> *              Discard next N bits.</span></span>
+<a name="line134">134: </a><span style="font-style: italic"><span style="color: #9A1900"> * The value N should be a simple variable, not an expression, because it</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900"> * is evaluated multiple times.</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line137">137: </a>
+<a name="line138">138: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">CHECK_BIT_BUFFER</span></span><span style="color: #990000">(</span>state<span style="color: #990000">,</span>nbits<span style="color: #990000">,</span>action<span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line139">139: </a>        <span style="color: #FF0000">{</span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>bits_left <span style="color: #990000">&lt;</span> <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>  <span style="color: #990000">\</span>
+<a name="line140">140: </a>            <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_fill_bit_buffer</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span><span style="color: #990000">(</span>state<span style="color: #990000">)</span><span style="color: #990000">,</span>get_buffer<span style="color: #990000">,</span>bits_left<span style="color: #990000">,</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line141">141: </a>              <span style="color: #FF0000">{</span> action<span style="color: #990000">;</span> <span style="color: #FF0000">}</span>  <span style="color: #990000">\</span>
+<a name="line142">142: </a>            get_buffer <span style="color: #990000">=</span> <span style="color: #990000">(</span>state<span style="color: #990000">)</span><span style="color: #990000">.</span>get_buffer<span style="color: #990000">;</span> bits_left <span style="color: #990000">=</span> <span style="color: #990000">(</span>state<span style="color: #990000">)</span><span style="color: #990000">.</span>bits_left<span style="color: #990000">;</span> <span style="color: #FF0000">}</span> <span style="color: #FF0000">}</span>
+<a name="line143">143: </a>
+<a name="line144">144: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GET_BITS</span></span><span style="color: #990000">(</span>nbits<span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line145">145: </a>        <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>get_buffer <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>bits_left <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line146">146: </a>
+<a name="line147">147: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">PEEK_BITS</span></span><span style="color: #990000">(</span>nbits<span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line148">148: </a>        <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>get_buffer <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>bits_left <span style="color: #990000">-</span>  <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line149">149: </a>
+<a name="line150">150: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DROP_BITS</span></span><span style="color: #990000">(</span>nbits<span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line151">151: </a>        <span style="color: #990000">(</span>bits_left <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line152">152: </a>
+<a name="line153">153: </a><span style="font-style: italic"><span style="color: #9A1900">/* Load up the bit buffer to a depth of at least nbits */</span></span>
+<a name="line154">154: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> jpeg_fill_bit_buffer
+<a name="line155">155: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>bitread_working_state <span style="color: #990000">*</span> state<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> bit_buf_type get_buffer<span style="color: #990000">,</span>
+<a name="line156">156: </a>             <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> bits_left<span style="color: #990000">,</span> <span style="color: #009900">int</span> nbits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line157">157: </a>
+<a name="line158">158: </a>
+<a name="line159">159: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line160">160: </a><span style="font-style: italic"><span style="color: #9A1900"> * Code for extracting next Huffman-coded symbol from input bit stream.</span></span>
+<a name="line161">161: </a><span style="font-style: italic"><span style="color: #9A1900"> * Again, this is time-critical and we make the main paths be macros.</span></span>
+<a name="line162">162: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line163">163: </a><span style="font-style: italic"><span style="color: #9A1900"> * We use a lookahead table to process codes of up to HUFF_LOOKAHEAD bits</span></span>
+<a name="line164">164: </a><span style="font-style: italic"><span style="color: #9A1900"> * without looping.  Usually, more than 95% of the Huffman codes will be 8</span></span>
+<a name="line165">165: </a><span style="font-style: italic"><span style="color: #9A1900"> * or fewer bits long.  The few overlength codes are handled with a loop,</span></span>
+<a name="line166">166: </a><span style="font-style: italic"><span style="color: #9A1900"> * which need not be inline code.</span></span>
+<a name="line167">167: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line168">168: </a><span style="font-style: italic"><span style="color: #9A1900"> * Notes about the HUFF_DECODE macro:</span></span>
+<a name="line169">169: </a><span style="font-style: italic"><span style="color: #9A1900"> * 1. Near the end of the data segment, we may fail to get enough bits</span></span>
+<a name="line170">170: </a><span style="font-style: italic"><span style="color: #9A1900"> *    for a lookahead.  In that case, we do it the hard way.</span></span>
+<a name="line171">171: </a><span style="font-style: italic"><span style="color: #9A1900"> * 2. If the lookahead table contains no entry, the next code must be</span></span>
+<a name="line172">172: </a><span style="font-style: italic"><span style="color: #9A1900"> *    more than HUFF_LOOKAHEAD bits long.</span></span>
+<a name="line173">173: </a><span style="font-style: italic"><span style="color: #9A1900"> * 3. jpeg_huff_decode returns -1 if forced to suspend.</span></span>
+<a name="line174">174: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line175">175: </a>
+<a name="line176">176: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">HUFF_DECODE</span></span><span style="color: #990000">(</span>result<span style="color: #990000">,</span>state<span style="color: #990000">,</span>htbl<span style="color: #990000">,</span>failaction<span style="color: #990000">,</span>slowlabel<span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line177">177: </a><span style="color: #FF0000">{</span> <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> nb<span style="color: #990000">,</span> look<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line178">178: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>bits_left <span style="color: #990000">&lt;</span> HUFF_LOOKAHEAD<span style="color: #990000">)</span> <span style="color: #FF0000">{</span> <span style="color: #990000">\</span>
+<a name="line179">179: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_fill_bit_buffer</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>state<span style="color: #990000">,</span>get_buffer<span style="color: #990000">,</span>bits_left<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>failaction<span style="color: #990000">;</span><span style="color: #FF0000">}</span> <span style="color: #990000">\</span>
+<a name="line180">180: </a>    get_buffer <span style="color: #990000">=</span> state<span style="color: #990000">.</span>get_buffer<span style="color: #990000">;</span> bits_left <span style="color: #990000">=</span> state<span style="color: #990000">.</span>bits_left<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line181">181: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>bits_left <span style="color: #990000">&lt;</span> HUFF_LOOKAHEAD<span style="color: #990000">)</span> <span style="color: #FF0000">{</span> <span style="color: #990000">\</span>
+<a name="line182">182: </a>      nb <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span> <span style="font-weight: bold"><span style="color: #0000FF">goto</span></span> slowlabel<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line183">183: </a>    <span style="color: #FF0000">}</span> <span style="color: #990000">\</span>
+<a name="line184">184: </a>  <span style="color: #FF0000">}</span> <span style="color: #990000">\</span>
+<a name="line185">185: </a>  look <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">PEEK_BITS</span></span><span style="color: #990000">(</span>HUFF_LOOKAHEAD<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line186">186: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>nb <span style="color: #990000">=</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>look_nbits<span style="color: #990000">[</span>look<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span> <span style="color: #990000">\</span>
+<a name="line187">187: </a>    <span style="font-weight: bold"><span style="color: #000000">DROP_BITS</span></span><span style="color: #990000">(</span>nb<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line188">188: </a>    result <span style="color: #990000">=</span> htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>look_sym<span style="color: #990000">[</span>look<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line189">189: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span> <span style="color: #990000">\</span>
+<a name="line190">190: </a>    nb <span style="color: #990000">=</span> HUFF_LOOKAHEAD<span style="color: #990000">+</span><span style="color: #993399">1</span><span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line191">191: </a>slowlabel<span style="color: #990000">:</span> <span style="color: #990000">\</span>
+<a name="line192">192: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>result<span style="color: #990000">=</span><span style="font-weight: bold"><span style="color: #000000">jpeg_huff_decode</span></span><span style="color: #990000">(</span><span style="color: #990000">&amp;</span>state<span style="color: #990000">,</span>get_buffer<span style="color: #990000">,</span>bits_left<span style="color: #990000">,</span>htbl<span style="color: #990000">,</span>nb<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #990000">\</span>
+<a name="line193">193: </a>        <span style="color: #FF0000">{</span> failaction<span style="color: #990000">;</span> <span style="color: #FF0000">}</span> <span style="color: #990000">\</span>
+<a name="line194">194: </a>    get_buffer <span style="color: #990000">=</span> state<span style="color: #990000">.</span>get_buffer<span style="color: #990000">;</span> bits_left <span style="color: #990000">=</span> state<span style="color: #990000">.</span>bits_left<span style="color: #990000">;</span> <span style="color: #990000">\</span>
+<a name="line195">195: </a>  <span style="color: #FF0000">}</span> <span style="color: #990000">\</span>
+<a name="line196">196: </a><span style="color: #FF0000">}</span>
+<a name="line197">197: </a>
+<a name="line198">198: </a><span style="font-style: italic"><span style="color: #9A1900">/* Out-of-line case for Huffman code fetching */</span></span>
+<a name="line199">199: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> jpeg_huff_decode
+<a name="line200">200: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>bitread_working_state <span style="color: #990000">*</span> state<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> bit_buf_type get_buffer<span style="color: #990000">,</span>
+<a name="line201">201: </a>             <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> bits_left<span style="color: #990000">,</span> d_derived_tbl <span style="color: #990000">*</span> htbl<span style="color: #990000">,</span> <span style="color: #009900">int</span> min_bits<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+</tt>
+</pre>
+</body>
+</html>

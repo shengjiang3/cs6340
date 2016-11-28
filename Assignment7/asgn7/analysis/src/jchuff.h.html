@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jchuff.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">01: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">02: </a><span style="font-style: italic"><span style="color: #9A1900"> * jchuff.h</span></span>
+<a name="line3">03: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">04: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1997, Thomas G. Lane.</span></span>
+<a name="line5">05: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">06: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">07: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">08: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains declarations for Huffman entropy encoding routines</span></span>
+<a name="line9">09: </a><span style="font-style: italic"><span style="color: #9A1900"> * that are shared between the sequential encoder (jchuff.c) and the</span></span>
+<a name="line10">10: </a><span style="font-style: italic"><span style="color: #9A1900"> * progressive encoder (jcphuff.c).  No other modules need to see these.</span></span>
+<a name="line11">11: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line12">12: </a>
+<a name="line13">13: </a><span style="font-style: italic"><span style="color: #9A1900">/* The legal range of a DCT coefficient is</span></span>
+<a name="line14">14: </a><span style="font-style: italic"><span style="color: #9A1900"> *  -1024 .. +1023  for 8-bit data;</span></span>
+<a name="line15">15: </a><span style="font-style: italic"><span style="color: #9A1900"> * -16384 .. +16383 for 12-bit data.</span></span>
+<a name="line16">16: </a><span style="font-style: italic"><span style="color: #9A1900"> * Hence the magnitude should always fit in 10 or 14 bits respectively.</span></span>
+<a name="line17">17: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line18">18: </a>
+<a name="line19">19: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> BITS_IN_JSAMPLE <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">8</span>
+<a name="line20">20: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAX_COEF_BITS <span style="color: #993399">10</span>
+<a name="line21">21: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line22">22: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAX_COEF_BITS <span style="color: #993399">14</span>
+<a name="line23">23: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line24">24: </a>
+<a name="line25">25: </a><span style="font-style: italic"><span style="color: #9A1900">/* Derived data constructed for each Huffman table */</span></span>
+<a name="line26">26: </a>
+<a name="line27">27: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line28">28: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> ehufco<span style="color: #990000">[</span><span style="color: #993399">256</span><span style="color: #990000">]</span><span style="color: #990000">;</span>     <span style="font-style: italic"><span style="color: #9A1900">/* code for each symbol */</span></span>
+<a name="line29">29: </a>  <span style="color: #009900">char</span> ehufsi<span style="color: #990000">[</span><span style="color: #993399">256</span><span style="color: #990000">]</span><span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* length of code for each symbol */</span></span>
+<a name="line30">30: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* If no code has been allocated for a symbol S, ehufsi[S] contains 0 */</span></span>
+<a name="line31">31: </a><span style="color: #FF0000">}</span> c_derived_tbl<span style="color: #990000">;</span>
+<a name="line32">32: </a>
+<a name="line33">33: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line34">34: </a>
+<a name="line35">35: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line36">36: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_make_c_derived_tbl jMkCDerived
+<a name="line37">37: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_gen_optimal_table  jGenOptTbl
+<a name="line38">38: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line39">39: </a>
+<a name="line40">40: </a><span style="font-style: italic"><span style="color: #9A1900">/* Expand a Huffman table definition into the derived format */</span></span>
+<a name="line41">41: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_make_c_derived_tbl
+<a name="line42">42: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> boolean isDC<span style="color: #990000">,</span> <span style="color: #009900">int</span> tblno<span style="color: #990000">,</span>
+<a name="line43">43: </a>             c_derived_tbl <span style="color: #990000">*</span><span style="color: #990000">*</span> pdtbl<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line44">44: </a>
+<a name="line45">45: </a><span style="font-style: italic"><span style="color: #9A1900">/* Generate an optimal table definition given the specified counts */</span></span>
+<a name="line46">46: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_gen_optimal_table
+<a name="line47">47: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JHUFF_TBL <span style="color: #990000">*</span> htbl<span style="color: #990000">,</span> <span style="color: #009900">long</span> freq<span style="color: #990000">[</span><span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+</tt>
+</pre>
+</body>
+</html>

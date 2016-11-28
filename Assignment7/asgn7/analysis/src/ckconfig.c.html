@@ -1,0 +1,421 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/ckconfig.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * ckconfig.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1994, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line8">008: </a>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * This program is intended to help you determine how to configure the JPEG</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * software for installation on a particular system.  The idea is to try to</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * compile and execute this program.  If your compiler fails to compile the</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * program, make changes as indicated in the comments below.  Once you can</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * compile the program, run it, and it will produce a "jconfig.h" file for</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * your system.</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * As a general rule, each time you try to compile this program,</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * pay attention only to the *first* error message you get from the compiler.</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * Many C compilers will issue lots of spurious error messages once they</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> * have gotten confused.  Go to the line indicated in the first error message,</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * and read the comments preceding that line to see what to change.</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * Almost all of the edits you may need to make to this program consist of</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * changing a line that reads "#define SOME_SYMBOL" to "#undef SOME_SYMBOL",</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * or vice versa.  This is called defining or undefining that symbol.</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line27">027: </a>
+<a name="line28">028: </a>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900">/* First we must see if your system has the include files we need.</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * We start out with the assumption that your system has all the ANSI-standard</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * include files.  If you get any error trying to include one of these files,</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * undefine the corresponding HAVE_xxx symbol.</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_STDDEF_H           <span style="font-style: italic"><span style="color: #9A1900">/* replace 'define' by 'undef' if error here */</span></span>
+<a name="line36">036: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDDEF_H            <span style="font-style: italic"><span style="color: #9A1900">/* next line will be skipped if you undef... */</span></span>
+<a name="line37">037: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stddef.h&gt;</span>
+<a name="line38">038: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line39">039: </a>
+<a name="line40">040: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_STDLIB_H           <span style="font-style: italic"><span style="color: #9A1900">/* same thing for stdlib.h */</span></span>
+<a name="line41">041: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDLIB_H
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stdlib.h&gt;</span>
+<a name="line43">043: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line44">044: </a>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stdio.h&gt;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* If you ain't got this, you ain't got C. */</span></span>
+<a name="line46">046: </a>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900">/* We have to see if your string functions are defined by</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> * strings.h (old BSD convention) or string.h (everybody else).</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * We try the non-BSD convention first; define NEED_BSD_STRINGS</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> * if the compiler says it can't find string.h.</span></span>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line52">052: </a>
+<a name="line53">053: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> NEED_BSD_STRINGS
+<a name="line54">054: </a>
+<a name="line55">055: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_BSD_STRINGS
+<a name="line56">056: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;strings.h&gt;</span>
+<a name="line57">057: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line58">058: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;string.h&gt;</span>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line60">060: </a>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900">/* On some systems (especially older Unix machines), type size_t is</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * defined only in the include file &lt;sys/types.h&gt;.  If you get a failure</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> * on the size_t test below, try defining NEED_SYS_TYPES_H.</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line65">065: </a>
+<a name="line66">066: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> NEED_SYS_TYPES_H         <span style="font-style: italic"><span style="color: #9A1900">/* start by assuming we don't need it */</span></span>
+<a name="line67">067: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SYS_TYPES_H
+<a name="line68">068: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;sys/types.h&gt;</span>
+<a name="line69">069: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line70">070: </a>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900">/* Usually type size_t is defined in one of the include files we've included</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * above.  If not, you'll get an error on the "typedef size_t my_size_t;" line.</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * In that case, first try defining NEED_SYS_TYPES_H just above.</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> * If that doesn't work, you'll have to search through your system library</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * to figure out which include file defines "size_t".  Look for a line that</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> * says "typedef something-or-other size_t;".  Then, change the line below</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> * that says "#include &lt;someincludefile.h&gt;" to instead include the file</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900"> * you found size_t in, and define NEED_SPECIAL_INCLUDE.  If you can't find</span></span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900"> * type size_t anywhere, try replacing "#include &lt;someincludefile.h&gt;" with</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> * "typedef unsigned int size_t;".</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line83">083: </a>
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> NEED_SPECIAL_INCLUDE     <span style="font-style: italic"><span style="color: #9A1900">/* assume we DON'T need it, for starters */</span></span>
+<a name="line85">085: </a>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SPECIAL_INCLUDE
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;someincludefile.h&gt;</span>
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line89">089: </a>
+<a name="line90">090: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> size_t my_size_t<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* The payoff: do we have size_t now? */</span></span>
+<a name="line91">091: </a>
+<a name="line92">092: </a>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900">/* The next question is whether your compiler supports ANSI-style function</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> * prototypes.  You need to know this in order to choose between using</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * makefile.ansi and using makefile.unix.</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * The #define line below is set to assume you have ANSI function prototypes.</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you get an error in this group of lines, undefine HAVE_PROTOTYPES.</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line99">099: </a>
+<a name="line100">100: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_PROTOTYPES
+<a name="line101">101: </a>
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line103">103: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">testfunction</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> arg1<span style="color: #990000">,</span> <span style="color: #009900">int</span> <span style="color: #990000">*</span> arg2<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* check prototypes */</span></span>
+<a name="line104">104: </a>
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> methods_struct <span style="color: #FF0000">{</span>         <span style="font-style: italic"><span style="color: #9A1900">/* check method-pointer declarations */</span></span>
+<a name="line106">106: </a>  <span style="color: #009900">int</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>error_exit<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span>msgtext<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line107">107: </a>  <span style="color: #009900">int</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>trace_message<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span>msgtext<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line108">108: </a>  <span style="color: #009900">int</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>another_method<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line109">109: </a><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line110">110: </a>
+<a name="line111">111: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">testfunction</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> arg1<span style="color: #990000">,</span> <span style="color: #009900">int</span> <span style="color: #990000">*</span> arg2<span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* check definitions */</span></span>
+<a name="line112">112: </a><span style="color: #FF0000">{</span>
+<a name="line113">113: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> arg2<span style="color: #990000">[</span>arg1<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line114">114: </a><span style="color: #FF0000">}</span>
+<a name="line115">115: </a>
+<a name="line116">116: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">test2function</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>        <span style="font-style: italic"><span style="color: #9A1900">/* check void arg list */</span></span>
+<a name="line117">117: </a><span style="color: #FF0000">{</span>
+<a name="line118">118: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line119">119: </a><span style="color: #FF0000">}</span>
+<a name="line120">120: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line121">121: </a>
+<a name="line122">122: </a>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900">/* Now we want to find out if your compiler knows what "unsigned char" means.</span></span>
+<a name="line124">124: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you get an error on the "unsigned char un_char;" line,</span></span>
+<a name="line125">125: </a><span style="font-style: italic"><span style="color: #9A1900"> * then undefine HAVE_UNSIGNED_CHAR.</span></span>
+<a name="line126">126: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line127">127: </a>
+<a name="line128">128: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_UNSIGNED_CHAR
+<a name="line129">129: </a>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_CHAR
+<a name="line131">131: </a><span style="color: #009900">unsigned</span> <span style="color: #009900">char</span> un_char<span style="color: #990000">;</span>
+<a name="line132">132: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line133">133: </a>
+<a name="line134">134: </a>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900">/* Now we want to find out if your compiler knows what "unsigned short" means.</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you get an error on the "unsigned short un_short;" line,</span></span>
+<a name="line137">137: </a><span style="font-style: italic"><span style="color: #9A1900"> * then undefine HAVE_UNSIGNED_SHORT.</span></span>
+<a name="line138">138: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line139">139: </a>
+<a name="line140">140: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_UNSIGNED_SHORT
+<a name="line141">141: </a>
+<a name="line142">142: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_SHORT
+<a name="line143">143: </a><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> un_short<span style="color: #990000">;</span>
+<a name="line144">144: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line145">145: </a>
+<a name="line146">146: </a>
+<a name="line147">147: </a><span style="font-style: italic"><span style="color: #9A1900">/* Now we want to find out if your compiler understands type "void".</span></span>
+<a name="line148">148: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you get an error anywhere in here, undefine HAVE_VOID.</span></span>
+<a name="line149">149: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line150">150: </a>
+<a name="line151">151: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_VOID
+<a name="line152">152: </a>
+<a name="line153">153: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_VOID
+<a name="line154">154: </a><span style="font-style: italic"><span style="color: #9A1900">/* Caution: a C++ compiler will insist on complete prototypes */</span></span>
+<a name="line155">155: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> void_ptr<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* check void * */</span></span>
+<a name="line156">156: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES          <span style="font-style: italic"><span style="color: #9A1900">/* check ptr to function returning void */</span></span>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">void</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>void_func<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #009900">int</span> a<span style="color: #990000">,</span> <span style="color: #009900">int</span> b<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line158">158: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line159">159: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">void</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>void_func<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line160">160: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line161">161: </a>
+<a name="line162">162: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES          <span style="font-style: italic"><span style="color: #9A1900">/* check void function result */</span></span>
+<a name="line163">163: </a><span style="color: #009900">void</span> <span style="font-weight: bold"><span style="color: #000000">test3function</span></span> <span style="color: #990000">(</span>void_ptr arg1<span style="color: #990000">,</span> void_func arg2<span style="color: #990000">)</span>
+<a name="line164">164: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line165">165: </a><span style="color: #009900">void</span> <span style="font-weight: bold"><span style="color: #000000">test3function</span></span> <span style="color: #990000">(</span>arg1<span style="color: #990000">,</span> arg2<span style="color: #990000">)</span>
+<a name="line166">166: </a>     void_ptr arg1<span style="color: #990000">;</span>
+<a name="line167">167: </a>     void_func arg2<span style="color: #990000">;</span>
+<a name="line168">168: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line169">169: </a><span style="color: #FF0000">{</span>
+<a name="line170">170: </a>  <span style="color: #009900">char</span> <span style="color: #990000">*</span> locptr <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> arg1<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* check casting to and from void * */</span></span>
+<a name="line171">171: </a>  arg1 <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> locptr<span style="color: #990000">;</span>
+<a name="line172">172: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>arg2<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">,</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* check call of fcn returning void */</span></span>
+<a name="line173">173: </a><span style="color: #FF0000">}</span>
+<a name="line174">174: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line175">175: </a>
+<a name="line176">176: </a>
+<a name="line177">177: </a><span style="font-style: italic"><span style="color: #9A1900">/* Now we want to find out if your compiler knows what "const" means.</span></span>
+<a name="line178">178: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you get an error here, undefine HAVE_CONST.</span></span>
+<a name="line179">179: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line180">180: </a>
+<a name="line181">181: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> HAVE_CONST
+<a name="line182">182: </a>
+<a name="line183">183: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_CONST
+<a name="line184">184: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">int</span> carray<span style="color: #990000">[</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #FF0000">{</span><span style="color: #993399">1</span><span style="color: #990000">,</span> <span style="color: #993399">2</span><span style="color: #990000">,</span> <span style="color: #993399">3</span><span style="color: #FF0000">}</span><span style="color: #990000">;</span>
+<a name="line185">185: </a>
+<a name="line186">186: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line187">187: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">test4function</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">int</span> arg1<span style="color: #990000">)</span>
+<a name="line188">188: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line189">189: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">test4function</span></span> <span style="color: #990000">(</span>arg1<span style="color: #990000">)</span>
+<a name="line190">190: </a>     <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">int</span> arg1<span style="color: #990000">;</span>
+<a name="line191">191: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line192">192: </a><span style="color: #FF0000">{</span>
+<a name="line193">193: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> carray<span style="color: #990000">[</span>arg1<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line194">194: </a><span style="color: #FF0000">}</span>
+<a name="line195">195: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line196">196: </a>
+<a name="line197">197: </a>
+<a name="line198">198: </a><span style="font-style: italic"><span style="color: #9A1900">/* If you get an error or warning about this structure definition,</span></span>
+<a name="line199">199: </a><span style="font-style: italic"><span style="color: #9A1900"> * define INCOMPLETE_TYPES_BROKEN.</span></span>
+<a name="line200">200: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line201">201: </a>
+<a name="line202">202: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> INCOMPLETE_TYPES_BROKEN
+<a name="line203">203: </a>
+<a name="line204">204: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> INCOMPLETE_TYPES_BROKEN
+<a name="line205">205: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> undefined_structure <span style="color: #990000">*</span> undef_struct_ptr<span style="color: #990000">;</span>
+<a name="line206">206: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line207">207: </a>
+<a name="line208">208: </a>
+<a name="line209">209: </a><span style="font-style: italic"><span style="color: #9A1900">/* If you get an error about duplicate names,</span></span>
+<a name="line210">210: </a><span style="font-style: italic"><span style="color: #9A1900"> * define NEED_SHORT_EXTERNAL_NAMES.</span></span>
+<a name="line211">211: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line212">212: </a>
+<a name="line213">213: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line214">214: </a>
+<a name="line215">215: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line216">216: </a>
+<a name="line217">217: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">possibly_duplicate_function</span></span> <span style="color: #990000">(</span><span style="color: #990000">)</span>
+<a name="line218">218: </a><span style="color: #FF0000">{</span>
+<a name="line219">219: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line220">220: </a><span style="color: #FF0000">}</span>
+<a name="line221">221: </a>
+<a name="line222">222: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">possibly_dupli_function</span></span> <span style="color: #990000">(</span><span style="color: #990000">)</span>
+<a name="line223">223: </a><span style="color: #FF0000">{</span>
+<a name="line224">224: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line225">225: </a><span style="color: #FF0000">}</span>
+<a name="line226">226: </a>
+<a name="line227">227: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line228">228: </a>
+<a name="line229">229: </a>
+<a name="line230">230: </a>
+<a name="line231">231: </a><span style="font-style: italic"><span style="color: #9A1900">/************************************************************************</span></span>
+<a name="line232">232: </a><span style="font-style: italic"><span style="color: #9A1900"> *  OK, that's it.  You should not have to change anything beyond this</span></span>
+<a name="line233">233: </a><span style="font-style: italic"><span style="color: #9A1900"> *  point in order to compile and execute this program.  (You might get</span></span>
+<a name="line234">234: </a><span style="font-style: italic"><span style="color: #9A1900"> *  some warnings, but you can ignore them.)</span></span>
+<a name="line235">235: </a><span style="font-style: italic"><span style="color: #9A1900"> *  When you run the program, it will make a couple more tests that it</span></span>
+<a name="line236">236: </a><span style="font-style: italic"><span style="color: #9A1900"> *  can do automatically, and then it will create jconfig.h and print out</span></span>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900"> *  any additional suggestions it has.</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900"> ************************************************************************</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line240">240: </a>
+<a name="line241">241: </a>
+<a name="line242">242: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line243">243: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">is_char_signed</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> arg<span style="color: #990000">)</span>
+<a name="line244">244: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line245">245: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">is_char_signed</span></span> <span style="color: #990000">(</span>arg<span style="color: #990000">)</span>
+<a name="line246">246: </a>     <span style="color: #009900">int</span> arg<span style="color: #990000">;</span>
+<a name="line247">247: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line248">248: </a><span style="color: #FF0000">{</span>
+<a name="line249">249: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>arg <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">189</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>             <span style="font-style: italic"><span style="color: #9A1900">/* expected result for unsigned char */</span></span>
+<a name="line250">250: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* type char is unsigned */</span></span>
+<a name="line251">251: </a>  <span style="color: #FF0000">}</span>
+<a name="line252">252: </a>  <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>arg <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #990000">-</span><span style="color: #993399">67</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>        <span style="font-style: italic"><span style="color: #9A1900">/* expected result for signed char */</span></span>
+<a name="line253">253: </a>    <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Hmm, it seems 'char' is not eight bits wide on your machine.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line254">254: </a>    <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"I fear the JPEG software will not work at all.\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line255">255: </a>  <span style="color: #FF0000">}</span>
+<a name="line256">256: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* assume char is signed otherwise */</span></span>
+<a name="line257">257: </a><span style="color: #FF0000">}</span>
+<a name="line258">258: </a>
+<a name="line259">259: </a>
+<a name="line260">260: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line261">261: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">is_shifting_signed</span></span> <span style="color: #990000">(</span><span style="color: #009900">long</span> arg<span style="color: #990000">)</span>
+<a name="line262">262: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line263">263: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">is_shifting_signed</span></span> <span style="color: #990000">(</span>arg<span style="color: #990000">)</span>
+<a name="line264">264: </a>     <span style="color: #009900">long</span> arg<span style="color: #990000">;</span>
+<a name="line265">265: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line266">266: </a><span style="font-style: italic"><span style="color: #9A1900">/* See whether right-shift on a long is signed or not. */</span></span>
+<a name="line267">267: </a><span style="color: #FF0000">{</span>
+<a name="line268">268: </a>  <span style="color: #009900">long</span> res <span style="color: #990000">=</span> arg <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">4</span><span style="color: #990000">;</span>
+<a name="line269">269: </a>
+<a name="line270">270: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>res <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #990000">-</span><span style="color: #993399">0x7F7E80C</span>L<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>     <span style="font-style: italic"><span style="color: #9A1900">/* expected result for signed shift */</span></span>
+<a name="line271">271: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* right shift is signed */</span></span>
+<a name="line272">272: </a>  <span style="color: #FF0000">}</span>
+<a name="line273">273: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* see if unsigned-shift hack will fix it. */</span></span>
+<a name="line274">274: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* we can't just test exact value since it depends on width of long... */</span></span>
+<a name="line275">275: </a>  res <span style="color: #990000">|</span><span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">~</span><span style="color: #993399">0</span>L<span style="color: #990000">)</span> <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #990000">(</span><span style="color: #993399">32</span><span style="color: #990000">-</span><span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line276">276: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>res <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #990000">-</span><span style="color: #993399">0x7F7E80C</span>L<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>     <span style="font-style: italic"><span style="color: #9A1900">/* expected result now? */</span></span>
+<a name="line277">277: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* right shift is unsigned */</span></span>
+<a name="line278">278: </a>  <span style="color: #FF0000">}</span>
+<a name="line279">279: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Right shift isn't acting as I expect it to.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line280">280: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"I fear the JPEG software will not work at all.\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line281">281: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* try it with unsigned anyway */</span></span>
+<a name="line282">282: </a><span style="color: #FF0000">}</span>
+<a name="line283">283: </a>
+<a name="line284">284: </a>
+<a name="line285">285: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line286">286: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">main</span></span> <span style="color: #990000">(</span><span style="color: #009900">int</span> argc<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">*</span> argv<span style="color: #990000">)</span>
+<a name="line287">287: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line288">288: </a><span style="color: #009900">int</span> <span style="font-weight: bold"><span style="color: #000000">main</span></span> <span style="color: #990000">(</span>argc<span style="color: #990000">,</span> argv<span style="color: #990000">)</span>
+<a name="line289">289: </a>     <span style="color: #009900">int</span> argc<span style="color: #990000">;</span>
+<a name="line290">290: </a>     <span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">*</span> argv<span style="color: #990000">;</span>
+<a name="line291">291: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line292">292: </a><span style="color: #FF0000">{</span>
+<a name="line293">293: </a>  <span style="color: #009900">char</span> signed_char_check <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">char</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">-</span><span style="color: #993399">67</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line294">294: </a>  FILE <span style="color: #990000">*</span>outfile<span style="color: #990000">;</span>
+<a name="line295">295: </a>
+<a name="line296">296: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Attempt to write jconfig.h */</span></span>
+<a name="line297">297: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>outfile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fopen</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"jconfig.h"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"w"</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line298">298: </a>    <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Failed to write jconfig.h\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line299">299: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line300">300: </a>  <span style="color: #FF0000">}</span>
+<a name="line301">301: </a>
+<a name="line302">302: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Write out all the info */</span></span>
+<a name="line303">303: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"/* jconfig.h --- generated by ckconfig.c */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line304">304: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"/* see jconfig.doc for explanations */\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line305">305: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line306">306: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define HAVE_PROTOTYPES\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line307">307: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line308">308: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef HAVE_PROTOTYPES\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line309">309: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line310">310: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_CHAR
+<a name="line311">311: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define HAVE_UNSIGNED_CHAR\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line312">312: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line313">313: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef HAVE_UNSIGNED_CHAR\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line314">314: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line315">315: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_SHORT
+<a name="line316">316: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define HAVE_UNSIGNED_SHORT\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line317">317: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line318">318: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef HAVE_UNSIGNED_SHORT\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line319">319: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line320">320: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_VOID
+<a name="line321">321: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"/* #define void char */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line322">322: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line323">323: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define void char\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line324">324: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line325">325: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_CONST
+<a name="line326">326: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"/* #define const */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line327">327: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line328">328: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define const\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line329">329: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line330">330: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">is_char_signed</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> signed_char_check<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line331">331: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef CHAR_IS_UNSIGNED\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line332">332: </a>  <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line333">333: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define CHAR_IS_UNSIGNED\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line334">334: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDDEF_H
+<a name="line335">335: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define HAVE_STDDEF_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line336">336: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line337">337: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef HAVE_STDDEF_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line338">338: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line339">339: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDLIB_H
+<a name="line340">340: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define HAVE_STDLIB_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line341">341: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line342">342: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef HAVE_STDLIB_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line343">343: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line344">344: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_BSD_STRINGS
+<a name="line345">345: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define NEED_BSD_STRINGS\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line346">346: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line347">347: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef NEED_BSD_STRINGS\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line348">348: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line349">349: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SYS_TYPES_H
+<a name="line350">350: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define NEED_SYS_TYPES_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line351">351: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line352">352: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef NEED_SYS_TYPES_H\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line353">353: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line354">354: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef NEED_FAR_POINTERS\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line355">355: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line356">356: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define NEED_SHORT_EXTERNAL_NAMES\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line357">357: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line358">358: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef NEED_SHORT_EXTERNAL_NAMES\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line359">359: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line360">360: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> INCOMPLETE_TYPES_BROKEN
+<a name="line361">361: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define INCOMPLETE_TYPES_BROKEN\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line362">362: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line363">363: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef INCOMPLETE_TYPES_BROKEN\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line364">364: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line365">365: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"\n#ifdef JPEG_INTERNALS\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line366">366: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">is_shifting_signed</span></span><span style="color: #990000">(</span><span style="color: #990000">-</span><span style="color: #993399">0x7F7E80B1</span>L<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line367">367: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef RIGHT_SHIFT_IS_UNSIGNED\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line368">368: </a>  <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line369">369: </a>    <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define RIGHT_SHIFT_IS_UNSIGNED\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line370">370: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"\n#endif /* JPEG_INTERNALS */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line371">371: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"\n#ifdef JPEG_CJPEG_DJPEG\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line372">372: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define BMP_SUPPORTED                /* BMP image file format */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line373">373: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define GIF_SUPPORTED                /* GIF image file format */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line374">374: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define PPM_SUPPORTED                /* PBMPLUS PPM/PGM image file format */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line375">375: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef RLE_SUPPORTED         /* Utah RLE image file format */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line376">376: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#define TARGA_SUPPORTED              /* Targa image file format */\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line377">377: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef TWO_FILE_COMMANDLINE  /* You may need this on non-Unix systems */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line378">378: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef NEED_SIGNAL_CATCHER   /* Define this if you use jmemname.c */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line379">379: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"#undef DONT_USE_B_MODE\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line380">380: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"/* #define PROGRESS_REPORT */        /* optional */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line381">381: </a>  <span style="font-weight: bold"><span style="color: #000000">fprintf</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">,</span> <span style="color: #FF0000">"\n#endif /* JPEG_CJPEG_DJPEG */\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line382">382: </a>
+<a name="line383">383: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Close the jconfig.h file */</span></span>
+<a name="line384">384: </a>  <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>outfile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line385">385: </a>
+<a name="line386">386: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* User report */</span></span>
+<a name="line387">387: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Configuration check for Independent JPEG Group's software done.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line388">388: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\nI have written the jconfig.h file for you.\n\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line389">389: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line390">390: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"You should use makefile.ansi as the starting point for your Makefile.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line391">391: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line392">392: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"You should use makefile.unix as the starting point for your Makefile.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line393">393: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line394">394: </a>
+<a name="line395">395: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SPECIAL_INCLUDE
+<a name="line396">396: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"\nYou'll need to change jconfig.h to include the system include file\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line397">397: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"that you found type size_t in, or add a direct definition of type\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line398">398: </a>  <span style="font-weight: bold"><span style="color: #000000">printf</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"size_t if that's what you used.  Just add it to the end.\n"</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line399">399: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line400">400: </a>
+<a name="line401">401: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line402">402: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

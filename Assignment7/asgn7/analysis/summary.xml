@@ -1,0 +1,2 @@
+<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="summary.xsl"?><!DOCTYPE experiment SYSTEM "summary.dtd"><experiment date="Wed Apr 20 10:51:03 2005
+" source-dir="src"><runs success="620" failure="180" ignore="0"/><analysis confidence="95"/><schemes><scheme name="branches" total="2838" retain="11"/><scheme name="returns" total="2430" retain="5"/><scheme name="scalar-pairs" total="57102" retain="17"/><scheme name="g-object-unref" total="0" retain="0"/></schemes></experiment>

@@ -1,0 +1,657 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jmemdos.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jmemdos.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1992-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file provides an MS-DOS-compatible implementation of the system-</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * dependent portion of the JPEG memory manager.  Temporary data can be</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * stored in extended or expanded memory as well as in regular DOS files.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you use this file, you must be sure that NEED_FAR_POINTERS is defined</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * if you compile in a small-data memory model; it should NOT be defined if</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * you use a large-data memory model.  This file is not recommended if you</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * are using a flat-memory-space 386 environment such as DJGCC or Watcom C.</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * Also, this code will NOT work if struct fields are aligned on greater than</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * 2-byte boundaries.</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * Based on code contributed by Ge' Weijers.</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line21">021: </a>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you have both extended and expanded memory, you may want to change the</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * order in which they are tried in jopen_backing_store.  On a 286 machine</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * expanded memory is usually faster, since extended memory access involves</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * an expensive protected-mode-and-back switch.  On 386 and better, extended</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> * memory is usually faster.  As distributed, the code tries extended memory</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * first (what? not everyone has a 386? :-).</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * You can disable use of extended/expanded memory entirely by altering these</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * definitions or overriding them from the Makefile (eg, -DEMS_SUPPORTED=0).</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line33">033: </a>
+<a name="line34">034: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> XMS_SUPPORTED
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> XMS_SUPPORTED  <span style="color: #993399">1</span>
+<a name="line36">036: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line37">037: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> EMS_SUPPORTED
+<a name="line38">038: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EMS_SUPPORTED  <span style="color: #993399">1</span>
+<a name="line39">039: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line40">040: </a>
+<a name="line41">041: </a>
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line43">043: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line44">044: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jmemsys.h"</span>              <span style="font-style: italic"><span style="color: #9A1900">/* import the system-dependent declarations */</span></span>
+<a name="line46">046: </a>
+<a name="line47">047: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> HAVE_STDLIB_H           <span style="font-style: italic"><span style="color: #9A1900">/* &lt;stdlib.h&gt; should declare these */</span></span>
+<a name="line48">048: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> malloc <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>size_t size<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line49">049: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> free <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span>ptr<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line50">050: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> getenv <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> name<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line51">051: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line52">052: </a>
+<a name="line53">053: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_FAR_POINTERS
+<a name="line54">054: </a>
+<a name="line55">055: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> __TURBOC__
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900">/* These definitions work for Borland C (Turbo C) */</span></span>
+<a name="line57">057: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;alloc.h&gt;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* need farmalloc(), farfree() */</span></span>
+<a name="line58">058: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_malloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>   <span style="font-weight: bold"><span style="color: #000000">farmalloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_free</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>     <span style="font-weight: bold"><span style="color: #000000">farfree</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900">/* These definitions work for Microsoft C and compatible compilers */</span></span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;malloc.h&gt;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* need _fmalloc(), _ffree() */</span></span>
+<a name="line63">063: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_malloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>   <span style="font-weight: bold"><span style="color: #000000">_fmalloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_free</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>     <span style="font-weight: bold"><span style="color: #000000">_ffree</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line65">065: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line66">066: </a>
+<a name="line67">067: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not NEED_FAR_POINTERS */</span></span>
+<a name="line68">068: </a>
+<a name="line69">069: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_malloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>   <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line70">070: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">far_free</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>     <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>x<span style="color: #990000">)</span>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_FAR_POINTERS */</span></span>
+<a name="line73">073: </a>
+<a name="line74">074: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DONT_USE_B_MODE          <span style="font-style: italic"><span style="color: #9A1900">/* define mode parameters for fopen() */</span></span>
+<a name="line75">075: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"r"</span>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> READ_BINARY     <span style="color: #FF0000">"rb"</span>
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line79">079: </a>
+<a name="line80">080: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> USE_MSDOS_MEMMGR        <span style="font-style: italic"><span style="color: #9A1900">/* make sure user got configuration right */</span></span>
+<a name="line81">081: </a>  You forgot to define USE_MSDOS_MEMMGR in jconfig<span style="color: #990000">.</span>h<span style="color: #990000">.</span> <span style="font-style: italic"><span style="color: #9A1900">/* deliberate syntax error */</span></span>
+<a name="line82">082: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line83">083: </a>
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> MAX_ALLOC_CHUNK <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">65535</span>L   <span style="font-style: italic"><span style="color: #9A1900">/* make sure jconfig.h got this right */</span></span>
+<a name="line85">085: </a>  MAX_ALLOC_CHUNK should be less than <span style="color: #993399">64</span>K<span style="color: #990000">.</span> <span style="font-style: italic"><span style="color: #9A1900">/* deliberate syntax error */</span></span>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line87">087: </a>
+<a name="line88">088: </a>
+<a name="line89">089: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line90">090: </a><span style="font-style: italic"><span style="color: #9A1900"> * Declarations for assembly-language support routines (see jmemdosa.asm).</span></span>
+<a name="line91">091: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900"> * The functions are declared "far" as are all their pointer arguments;</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900"> * this ensures the assembly source code will work regardless of the</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> * compiler memory model.  We assume "short" is 16 bits, "long" is 32.</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line96">096: </a>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">void</span> far <span style="color: #990000">*</span> XMSDRIVER<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* actually a pointer to code */</span></span>
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>                <span style="font-style: italic"><span style="color: #9A1900">/* registers for calling XMS driver */</span></span>
+<a name="line99">099: </a>        <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> ax<span style="color: #990000">,</span> dx<span style="color: #990000">,</span> bx<span style="color: #990000">;</span>
+<a name="line100">100: </a>        <span style="color: #009900">void</span> far <span style="color: #990000">*</span> ds_si<span style="color: #990000">;</span>
+<a name="line101">101: </a>      <span style="color: #FF0000">}</span> XMScontext<span style="color: #990000">;</span>
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>                <span style="font-style: italic"><span style="color: #9A1900">/* registers for calling EMS driver */</span></span>
+<a name="line103">103: </a>        <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> ax<span style="color: #990000">,</span> dx<span style="color: #990000">,</span> bx<span style="color: #990000">;</span>
+<a name="line104">104: </a>        <span style="color: #009900">void</span> far <span style="color: #990000">*</span> ds_si<span style="color: #990000">;</span>
+<a name="line105">105: </a>      <span style="color: #FF0000">}</span> EMScontext<span style="color: #990000">;</span>
+<a name="line106">106: </a>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jdos_open <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> far <span style="color: #990000">*</span> handle<span style="color: #990000">,</span> <span style="color: #009900">char</span> far <span style="color: #990000">*</span> filename<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jdos_close <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> handle<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jdos_seek <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> handle<span style="color: #990000">,</span> <span style="color: #009900">long</span> offset<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jdos_read <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> handle<span style="color: #990000">,</span> <span style="color: #009900">void</span> far <span style="color: #990000">*</span> buffer<span style="color: #990000">,</span>
+<a name="line111">111: </a>                                <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> count<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line112">112: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jdos_write <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> handle<span style="color: #990000">,</span> <span style="color: #009900">void</span> far <span style="color: #990000">*</span> buffer<span style="color: #990000">,</span>
+<a name="line113">113: </a>                                 <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> count<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> far jxms_getdriver <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>XMSDRIVER far <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> far jxms_calldriver <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>XMSDRIVER<span style="color: #990000">,</span> XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">short</span> far jems_available <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line117">117: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> far jems_calldriver <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line118">118: </a>
+<a name="line119">119: </a>
+<a name="line120">120: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line121">121: </a><span style="font-style: italic"><span style="color: #9A1900"> * Selection of a file name for a temporary file.</span></span>
+<a name="line122">122: </a><span style="font-style: italic"><span style="color: #9A1900"> * This is highly system-dependent, and you may want to customize it.</span></span>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line124">124: </a>
+<a name="line125">125: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> <span style="color: #009900">int</span> next_file_num<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* to distinguish among several temp files */</span></span>
+<a name="line126">126: </a>
+<a name="line127">127: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line128">128: </a><span style="font-weight: bold"><span style="color: #000000">select_file_name</span></span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span> fname<span style="color: #990000">)</span>
+<a name="line129">129: </a><span style="color: #FF0000">{</span>
+<a name="line130">130: </a>  <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> env<span style="color: #990000">;</span>
+<a name="line131">131: </a>  <span style="color: #009900">char</span> <span style="color: #990000">*</span> ptr<span style="color: #990000">;</span>
+<a name="line132">132: </a>  FILE <span style="color: #990000">*</span> tfile<span style="color: #990000">;</span>
+<a name="line133">133: </a>
+<a name="line134">134: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Keep generating file names till we find one that's not in use */</span></span>
+<a name="line135">135: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span><span style="color: #990000">;</span><span style="color: #990000">;</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line136">136: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Get temp directory name from environment TMP or TEMP variable;</span></span>
+<a name="line137">137: </a><span style="font-style: italic"><span style="color: #9A1900">     * if none, use "."</span></span>
+<a name="line138">138: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line139">139: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>env <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">getenv</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"TMP"</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line140">140: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>env <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">getenv</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"TEMP"</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line141">141: </a>        env <span style="color: #990000">=</span> <span style="color: #FF0000">"."</span><span style="color: #990000">;</span>
+<a name="line142">142: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>env <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\0'</span><span style="color: #990000">)</span>             <span style="font-style: italic"><span style="color: #9A1900">/* null string means "." */</span></span>
+<a name="line143">143: </a>      env <span style="color: #990000">=</span> <span style="color: #FF0000">"."</span><span style="color: #990000">;</span>
+<a name="line144">144: </a>    ptr <span style="color: #990000">=</span> fname<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* copy name to fname */</span></span>
+<a name="line145">145: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>env <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\0'</span><span style="color: #990000">)</span>
+<a name="line146">146: </a>      <span style="color: #990000">*</span>ptr<span style="color: #990000">+</span><span style="color: #990000">+</span> <span style="color: #990000">=</span> <span style="color: #990000">*</span>env<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line147">147: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ptr<span style="color: #990000">[</span><span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'\\'</span> <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span> ptr<span style="color: #990000">[</span><span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #FF0000">'/'</span><span style="color: #990000">)</span>
+<a name="line148">148: </a>      <span style="color: #990000">*</span>ptr<span style="color: #990000">+</span><span style="color: #990000">+</span> <span style="color: #990000">=</span> <span style="color: #FF0000">'\\'</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* append backslash if not in env variable */</span></span>
+<a name="line149">149: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Append a suitable file name */</span></span>
+<a name="line150">150: </a>    next_file_num<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* advance counter */</span></span>
+<a name="line151">151: </a>    <span style="font-weight: bold"><span style="color: #000000">sprintf</span></span><span style="color: #990000">(</span>ptr<span style="color: #990000">,</span> <span style="color: #FF0000">"JPG%03d.TMP"</span><span style="color: #990000">,</span> next_file_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line152">152: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Probe to see if file name is already in use */</span></span>
+<a name="line153">153: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>tfile <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">fopen</span></span><span style="color: #990000">(</span>fname<span style="color: #990000">,</span> READ_BINARY<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line154">154: </a>      <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line155">155: </a>    <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>tfile<span style="color: #990000">)</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* oops, it's there; close tfile &amp; try again */</span></span>
+<a name="line156">156: </a>  <span style="color: #FF0000">}</span>
+<a name="line157">157: </a><span style="color: #FF0000">}</span>
+<a name="line158">158: </a>
+<a name="line159">159: </a>
+<a name="line160">160: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line161">161: </a><span style="font-style: italic"><span style="color: #9A1900"> * Near-memory allocation and freeing are controlled by the regular library</span></span>
+<a name="line162">162: </a><span style="font-style: italic"><span style="color: #9A1900"> * routines malloc() and free().</span></span>
+<a name="line163">163: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line164">164: </a>
+<a name="line165">165: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line166">166: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line167">167: </a><span style="color: #FF0000">{</span>
+<a name="line168">168: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line169">169: </a><span style="color: #FF0000">}</span>
+<a name="line170">170: </a>
+<a name="line171">171: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line172">172: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line173">173: </a><span style="color: #FF0000">{</span>
+<a name="line174">174: </a>  <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line175">175: </a><span style="color: #FF0000">}</span>
+<a name="line176">176: </a>
+<a name="line177">177: </a>
+<a name="line178">178: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line179">179: </a><span style="font-style: italic"><span style="color: #9A1900"> * "Large" objects are allocated in far memory, if possible</span></span>
+<a name="line180">180: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line181">181: </a>
+<a name="line182">182: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line183">183: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line184">184: </a><span style="color: #FF0000">{</span>
+<a name="line185">185: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">far_malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line186">186: </a><span style="color: #FF0000">}</span>
+<a name="line187">187: </a>
+<a name="line188">188: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line189">189: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line190">190: </a><span style="color: #FF0000">{</span>
+<a name="line191">191: </a>  <span style="font-weight: bold"><span style="color: #000000">far_free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line192">192: </a><span style="color: #FF0000">}</span>
+<a name="line193">193: </a>
+<a name="line194">194: </a>
+<a name="line195">195: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line196">196: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine computes the total memory space available for allocation.</span></span>
+<a name="line197">197: </a><span style="font-style: italic"><span style="color: #9A1900"> * It's impossible to do this in a portable way; our current solution is</span></span>
+<a name="line198">198: </a><span style="font-style: italic"><span style="color: #9A1900"> * to make the user tell us (with a default value set at compile time).</span></span>
+<a name="line199">199: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you can actually get the available space, it's a good idea to subtract</span></span>
+<a name="line200">200: </a><span style="font-style: italic"><span style="color: #9A1900"> * a slop factor of 5% or so.</span></span>
+<a name="line201">201: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line202">202: </a>
+<a name="line203">203: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> DEFAULT_MAX_MEM         <span style="font-style: italic"><span style="color: #9A1900">/* so can override from makefile */</span></span>
+<a name="line204">204: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> DEFAULT_MAX_MEM         <span style="color: #993399">300000</span>L <span style="font-style: italic"><span style="color: #9A1900">/* for total usage about 450K */</span></span>
+<a name="line205">205: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line206">206: </a>
+<a name="line207">207: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line208">208: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_available</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">long</span> min_bytes_needed<span style="color: #990000">,</span>
+<a name="line209">209: </a>                    <span style="color: #009900">long</span> max_bytes_needed<span style="color: #990000">,</span> <span style="color: #009900">long</span> already_allocated<span style="color: #990000">)</span>
+<a name="line210">210: </a><span style="color: #FF0000">{</span>
+<a name="line211">211: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>max_memory_to_use <span style="color: #990000">-</span> already_allocated<span style="color: #990000">;</span>
+<a name="line212">212: </a><span style="color: #FF0000">}</span>
+<a name="line213">213: </a>
+<a name="line214">214: </a>
+<a name="line215">215: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line216">216: </a><span style="font-style: italic"><span style="color: #9A1900"> * Backing store (temporary file) management.</span></span>
+<a name="line217">217: </a><span style="font-style: italic"><span style="color: #9A1900"> * Backing store objects are only used when the value returned by</span></span>
+<a name="line218">218: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_mem_available is less than the total space needed.  You can dispense</span></span>
+<a name="line219">219: </a><span style="font-style: italic"><span style="color: #9A1900"> * with these routines if you have plenty of virtual memory; see jmemnobs.c.</span></span>
+<a name="line220">220: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line221">221: </a>
+<a name="line222">222: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line223">223: </a><span style="font-style: italic"><span style="color: #9A1900"> * For MS-DOS we support three types of backing storage:</span></span>
+<a name="line224">224: </a><span style="font-style: italic"><span style="color: #9A1900"> *   1. Conventional DOS files.  We access these by direct DOS calls rather</span></span>
+<a name="line225">225: </a><span style="font-style: italic"><span style="color: #9A1900"> *      than via the stdio package.  This provides a bit better performance,</span></span>
+<a name="line226">226: </a><span style="font-style: italic"><span style="color: #9A1900"> *      but the real reason is that the buffers to be read or written are FAR.</span></span>
+<a name="line227">227: </a><span style="font-style: italic"><span style="color: #9A1900"> *      The stdio library for small-data memory models can't cope with that.</span></span>
+<a name="line228">228: </a><span style="font-style: italic"><span style="color: #9A1900"> *   2. Extended memory, accessed per the XMS V2.0 specification.</span></span>
+<a name="line229">229: </a><span style="font-style: italic"><span style="color: #9A1900"> *   3. Expanded memory, accessed per the LIM/EMS 4.0 specification.</span></span>
+<a name="line230">230: </a><span style="font-style: italic"><span style="color: #9A1900"> * You'll need copies of those specs to make sense of the related code.</span></span>
+<a name="line231">231: </a><span style="font-style: italic"><span style="color: #9A1900"> * The specs are available by Internet FTP from the SIMTEL archives </span></span>
+<a name="line232">232: </a><span style="font-style: italic"><span style="color: #9A1900"> * (oak.oakland.edu and its various mirror sites).  See files</span></span>
+<a name="line233">233: </a><span style="font-style: italic"><span style="color: #9A1900"> * pub/msdos/microsoft/xms20.arc and pub/msdos/info/limems41.zip.</span></span>
+<a name="line234">234: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line235">235: </a>
+<a name="line236">236: </a>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900"> * Access methods for a DOS file.</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line240">240: </a>
+<a name="line241">241: </a>
+<a name="line242">242: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line243">243: </a><span style="font-weight: bold"><span style="color: #000000">read_file_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line244">244: </a>                 <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line245">245: </a>                 <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line246">246: </a><span style="color: #FF0000">{</span>
+<a name="line247">247: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">jdos_seek</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle<span style="color: #990000">,</span> file_offset<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line248">248: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_SEEK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line249">249: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Since MAX_ALLOC_CHUNK is less than 64K, byte_count will be too. */</span></span>
+<a name="line250">250: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>byte_count <span style="color: #990000">&gt;</span> <span style="color: #993399">65535</span>L<span style="color: #990000">)</span>      <span style="font-style: italic"><span style="color: #9A1900">/* safety check */</span></span>
+<a name="line251">251: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_ALLOC_CHUNK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line252">252: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">jdos_read</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle<span style="color: #990000">,</span> buffer_address<span style="color: #990000">,</span>
+<a name="line253">253: </a>                <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line254">254: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_READ<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line255">255: </a><span style="color: #FF0000">}</span>
+<a name="line256">256: </a>
+<a name="line257">257: </a>
+<a name="line258">258: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line259">259: </a><span style="font-weight: bold"><span style="color: #000000">write_file_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line260">260: </a>                  <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line261">261: </a>                  <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line262">262: </a><span style="color: #FF0000">{</span>
+<a name="line263">263: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">jdos_seek</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle<span style="color: #990000">,</span> file_offset<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line264">264: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_SEEK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line265">265: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Since MAX_ALLOC_CHUNK is less than 64K, byte_count will be too. */</span></span>
+<a name="line266">266: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>byte_count <span style="color: #990000">&gt;</span> <span style="color: #993399">65535</span>L<span style="color: #990000">)</span>      <span style="font-style: italic"><span style="color: #9A1900">/* safety check */</span></span>
+<a name="line267">267: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_ALLOC_CHUNK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line268">268: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">jdos_write</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle<span style="color: #990000">,</span> buffer_address<span style="color: #990000">,</span>
+<a name="line269">269: </a>                 <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line270">270: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line271">271: </a><span style="color: #FF0000">}</span>
+<a name="line272">272: </a>
+<a name="line273">273: </a>
+<a name="line274">274: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line275">275: </a><span style="font-weight: bold"><span style="color: #000000">close_file_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">)</span>
+<a name="line276">276: </a><span style="color: #FF0000">{</span>
+<a name="line277">277: </a>  <span style="font-weight: bold"><span style="color: #000000">jdos_close</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* close the file */</span></span>
+<a name="line278">278: </a>  <span style="font-weight: bold"><span style="color: #000000">remove</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* delete the file */</span></span>
+<a name="line279">279: </a><span style="font-style: italic"><span style="color: #9A1900">/* If your system doesn't have remove(), try unlink() instead.</span></span>
+<a name="line280">280: </a><span style="font-style: italic"><span style="color: #9A1900"> * remove() is the ANSI-standard name for this function, but</span></span>
+<a name="line281">281: </a><span style="font-style: italic"><span style="color: #9A1900"> * unlink() was more common in pre-ANSI systems.</span></span>
+<a name="line282">282: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line283">283: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMSS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_TFILE_CLOSE<span style="color: #990000">,</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line284">284: </a><span style="color: #FF0000">}</span>
+<a name="line285">285: </a>
+<a name="line286">286: </a>
+<a name="line287">287: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line288">288: </a><span style="font-weight: bold"><span style="color: #000000">open_file_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line289">289: </a>                 <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line290">290: </a><span style="color: #FF0000">{</span>
+<a name="line291">291: </a>  <span style="color: #009900">short</span> handle<span style="color: #990000">;</span>
+<a name="line292">292: </a>
+<a name="line293">293: </a>  <span style="font-weight: bold"><span style="color: #000000">select_file_name</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line294">294: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">jdos_open</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">short</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> handle<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">char</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line295">295: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* might as well exit since jpeg_open_backing_store will fail anyway */</span></span>
+<a name="line296">296: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXITS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_CREATE<span style="color: #990000">,</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line297">297: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line298">298: </a>  <span style="color: #FF0000">}</span>
+<a name="line299">299: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>file_handle <span style="color: #990000">=</span> handle<span style="color: #990000">;</span>
+<a name="line300">300: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>read_backing_store <span style="color: #990000">=</span> read_file_store<span style="color: #990000">;</span>
+<a name="line301">301: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_backing_store <span style="color: #990000">=</span> write_file_store<span style="color: #990000">;</span>
+<a name="line302">302: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>close_backing_store <span style="color: #990000">=</span> close_file_store<span style="color: #990000">;</span>
+<a name="line303">303: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMSS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_TFILE_OPEN<span style="color: #990000">,</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_name<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line304">304: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* succeeded */</span></span>
+<a name="line305">305: </a><span style="color: #FF0000">}</span>
+<a name="line306">306: </a>
+<a name="line307">307: </a>
+<a name="line308">308: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line309">309: </a><span style="font-style: italic"><span style="color: #9A1900"> * Access methods for extended memory.</span></span>
+<a name="line310">310: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line311">311: </a>
+<a name="line312">312: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> XMS_SUPPORTED
+<a name="line313">313: </a>
+<a name="line314">314: </a><span style="font-weight: bold"><span style="color: #0000FF">static</span></span> XMSDRIVER xms_driver<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* saved address of XMS driver */</span></span>
+<a name="line315">315: </a>
+<a name="line316">316: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">union</span></span> <span style="color: #FF0000">{</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* either long offset or real-mode pointer */</span></span>
+<a name="line317">317: </a>        <span style="color: #009900">long</span> offset<span style="color: #990000">;</span>
+<a name="line318">318: </a>        <span style="color: #009900">void</span> far <span style="color: #990000">*</span> ptr<span style="color: #990000">;</span>
+<a name="line319">319: </a>      <span style="color: #FF0000">}</span> XMSPTR<span style="color: #990000">;</span>
+<a name="line320">320: </a>
+<a name="line321">321: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>                <span style="font-style: italic"><span style="color: #9A1900">/* XMS move specification structure */</span></span>
+<a name="line322">322: </a>        <span style="color: #009900">long</span> length<span style="color: #990000">;</span>
+<a name="line323">323: </a>        XMSH src_handle<span style="color: #990000">;</span>
+<a name="line324">324: </a>        XMSPTR src<span style="color: #990000">;</span>
+<a name="line325">325: </a>        XMSH dst_handle<span style="color: #990000">;</span>
+<a name="line326">326: </a>        XMSPTR dst<span style="color: #990000">;</span>
+<a name="line327">327: </a>      <span style="color: #FF0000">}</span> XMSspec<span style="color: #990000">;</span>
+<a name="line328">328: </a>
+<a name="line329">329: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">ODD</span></span><span style="color: #990000">(</span>X<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>X<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">1</span>L<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line330">330: </a>
+<a name="line331">331: </a>
+<a name="line332">332: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line333">333: </a><span style="font-weight: bold"><span style="color: #000000">read_xms_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line334">334: </a>                <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line335">335: </a>                <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line336">336: </a><span style="color: #FF0000">{</span>
+<a name="line337">337: </a>  XMScontext ctx<span style="color: #990000">;</span>
+<a name="line338">338: </a>  XMSspec spec<span style="color: #990000">;</span>
+<a name="line339">339: </a>  <span style="color: #009900">char</span> endbuffer<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line340">340: </a>
+<a name="line341">341: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* The XMS driver can't cope with an odd length, so handle the last byte</span></span>
+<a name="line342">342: </a><span style="font-style: italic"><span style="color: #9A1900">   * specially if byte_count is odd.  We don't expect this to be common.</span></span>
+<a name="line343">343: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line344">344: </a>
+<a name="line345">345: </a>  spec<span style="color: #990000">.</span>length <span style="color: #990000">=</span> byte_count <span style="color: #990000">&amp;</span> <span style="color: #990000">(</span><span style="color: #990000">~</span> <span style="color: #993399">1</span>L<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line346">346: </a>  spec<span style="color: #990000">.</span>src_handle <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>xms_handle<span style="color: #990000">;</span>
+<a name="line347">347: </a>  spec<span style="color: #990000">.</span>src<span style="color: #990000">.</span>offset <span style="color: #990000">=</span> file_offset<span style="color: #990000">;</span>
+<a name="line348">348: </a>  spec<span style="color: #990000">.</span>dst_handle <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line349">349: </a>  spec<span style="color: #990000">.</span>dst<span style="color: #990000">.</span>ptr <span style="color: #990000">=</span> buffer_address<span style="color: #990000">;</span>
+<a name="line350">350: </a>  
+<a name="line351">351: </a>  ctx<span style="color: #990000">.</span>ds_si <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> spec<span style="color: #990000">;</span>
+<a name="line352">352: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x0b00</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* EMB move */</span></span>
+<a name="line353">353: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_calldriver</span></span><span style="color: #990000">(</span>xms_driver<span style="color: #990000">,</span> <span style="color: #990000">(</span>XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line354">354: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line355">355: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_XMS_READ<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line356">356: </a>
+<a name="line357">357: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">ODD</span></span><span style="color: #990000">(</span>byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line358">358: </a>    <span style="font-weight: bold"><span style="color: #000000">read_xms_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> endbuffer<span style="color: #990000">,</span>
+<a name="line359">359: </a>                   file_offset <span style="color: #990000">+</span> byte_count <span style="color: #990000">-</span> <span style="color: #993399">1</span>L<span style="color: #990000">,</span> <span style="color: #993399">2</span>L<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line360">360: </a>    <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">char</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> buffer_address<span style="color: #990000">)</span><span style="color: #990000">[</span>byte_count <span style="color: #990000">-</span> <span style="color: #993399">1</span>L<span style="color: #990000">]</span> <span style="color: #990000">=</span> endbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line361">361: </a>  <span style="color: #FF0000">}</span>
+<a name="line362">362: </a><span style="color: #FF0000">}</span>
+<a name="line363">363: </a>
+<a name="line364">364: </a>
+<a name="line365">365: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line366">366: </a><span style="font-weight: bold"><span style="color: #000000">write_xms_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line367">367: </a>                 <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line368">368: </a>                 <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line369">369: </a><span style="color: #FF0000">{</span>
+<a name="line370">370: </a>  XMScontext ctx<span style="color: #990000">;</span>
+<a name="line371">371: </a>  XMSspec spec<span style="color: #990000">;</span>
+<a name="line372">372: </a>  <span style="color: #009900">char</span> endbuffer<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line373">373: </a>
+<a name="line374">374: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* The XMS driver can't cope with an odd length, so handle the last byte</span></span>
+<a name="line375">375: </a><span style="font-style: italic"><span style="color: #9A1900">   * specially if byte_count is odd.  We don't expect this to be common.</span></span>
+<a name="line376">376: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line377">377: </a>
+<a name="line378">378: </a>  spec<span style="color: #990000">.</span>length <span style="color: #990000">=</span> byte_count <span style="color: #990000">&amp;</span> <span style="color: #990000">(</span><span style="color: #990000">~</span> <span style="color: #993399">1</span>L<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line379">379: </a>  spec<span style="color: #990000">.</span>src_handle <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line380">380: </a>  spec<span style="color: #990000">.</span>src<span style="color: #990000">.</span>ptr <span style="color: #990000">=</span> buffer_address<span style="color: #990000">;</span>
+<a name="line381">381: </a>  spec<span style="color: #990000">.</span>dst_handle <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>xms_handle<span style="color: #990000">;</span>
+<a name="line382">382: </a>  spec<span style="color: #990000">.</span>dst<span style="color: #990000">.</span>offset <span style="color: #990000">=</span> file_offset<span style="color: #990000">;</span>
+<a name="line383">383: </a>
+<a name="line384">384: </a>  ctx<span style="color: #990000">.</span>ds_si <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> spec<span style="color: #990000">;</span>
+<a name="line385">385: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x0b00</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* EMB move */</span></span>
+<a name="line386">386: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_calldriver</span></span><span style="color: #990000">(</span>xms_driver<span style="color: #990000">,</span> <span style="color: #990000">(</span>XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line387">387: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line388">388: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_XMS_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line389">389: </a>
+<a name="line390">390: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">ODD</span></span><span style="color: #990000">(</span>byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line391">391: </a>    <span style="font-weight: bold"><span style="color: #000000">read_xms_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> endbuffer<span style="color: #990000">,</span>
+<a name="line392">392: </a>                   file_offset <span style="color: #990000">+</span> byte_count <span style="color: #990000">-</span> <span style="color: #993399">1</span>L<span style="color: #990000">,</span> <span style="color: #993399">2</span>L<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line393">393: </a>    endbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">char</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> buffer_address<span style="color: #990000">)</span><span style="color: #990000">[</span>byte_count <span style="color: #990000">-</span> <span style="color: #993399">1</span>L<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line394">394: </a>    <span style="font-weight: bold"><span style="color: #000000">write_xms_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> endbuffer<span style="color: #990000">,</span>
+<a name="line395">395: </a>                    file_offset <span style="color: #990000">+</span> byte_count <span style="color: #990000">-</span> <span style="color: #993399">1</span>L<span style="color: #990000">,</span> <span style="color: #993399">2</span>L<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line396">396: </a>  <span style="color: #FF0000">}</span>
+<a name="line397">397: </a><span style="color: #FF0000">}</span>
+<a name="line398">398: </a>
+<a name="line399">399: </a>
+<a name="line400">400: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line401">401: </a><span style="font-weight: bold"><span style="color: #000000">close_xms_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">)</span>
+<a name="line402">402: </a><span style="color: #FF0000">{</span>
+<a name="line403">403: </a>  XMScontext ctx<span style="color: #990000">;</span>
+<a name="line404">404: </a>
+<a name="line405">405: </a>  ctx<span style="color: #990000">.</span>dx <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>xms_handle<span style="color: #990000">;</span>
+<a name="line406">406: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x0a00</span><span style="color: #990000">;</span>
+<a name="line407">407: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_calldriver</span></span><span style="color: #990000">(</span>xms_driver<span style="color: #990000">,</span> <span style="color: #990000">(</span>XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line408">408: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMS1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_XMS_CLOSE<span style="color: #990000">,</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>xms_handle<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line409">409: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* we ignore any error return from the driver */</span></span>
+<a name="line410">410: </a><span style="color: #FF0000">}</span>
+<a name="line411">411: </a>
+<a name="line412">412: </a>
+<a name="line413">413: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line414">414: </a><span style="font-weight: bold"><span style="color: #000000">open_xms_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line415">415: </a>                <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line416">416: </a><span style="color: #FF0000">{</span>
+<a name="line417">417: </a>  XMScontext ctx<span style="color: #990000">;</span>
+<a name="line418">418: </a>
+<a name="line419">419: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get address of XMS driver */</span></span>
+<a name="line420">420: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_getdriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>XMSDRIVER far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> xms_driver<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line421">421: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>xms_driver <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line422">422: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* no driver to be had */</span></span>
+<a name="line423">423: </a>
+<a name="line424">424: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get version number, must be &gt;= 2.00 */</span></span>
+<a name="line425">425: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x0000</span><span style="color: #990000">;</span>
+<a name="line426">426: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_calldriver</span></span><span style="color: #990000">(</span>xms_driver<span style="color: #990000">,</span> <span style="color: #990000">(</span>XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line427">427: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax <span style="color: #990000">&lt;</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #993399">0x0200</span><span style="color: #990000">)</span>
+<a name="line428">428: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line429">429: </a>
+<a name="line430">430: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Try to get space (expressed in kilobytes) */</span></span>
+<a name="line431">431: </a>  ctx<span style="color: #990000">.</span>dx <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>total_bytes_needed <span style="color: #990000">+</span> <span style="color: #993399">1023</span>L<span style="color: #990000">)</span> <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">10</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line432">432: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x0900</span><span style="color: #990000">;</span>
+<a name="line433">433: </a>  <span style="font-weight: bold"><span style="color: #000000">jxms_calldriver</span></span><span style="color: #990000">(</span>xms_driver<span style="color: #990000">,</span> <span style="color: #990000">(</span>XMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line434">434: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line435">435: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line436">436: </a>
+<a name="line437">437: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Succeeded, save the handle and away we go */</span></span>
+<a name="line438">438: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>xms_handle <span style="color: #990000">=</span> ctx<span style="color: #990000">.</span>dx<span style="color: #990000">;</span>
+<a name="line439">439: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>read_backing_store <span style="color: #990000">=</span> read_xms_store<span style="color: #990000">;</span>
+<a name="line440">440: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_backing_store <span style="color: #990000">=</span> write_xms_store<span style="color: #990000">;</span>
+<a name="line441">441: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>close_backing_store <span style="color: #990000">=</span> close_xms_store<span style="color: #990000">;</span>
+<a name="line442">442: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMS1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_XMS_OPEN<span style="color: #990000">,</span> ctx<span style="color: #990000">.</span>dx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line443">443: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* succeeded */</span></span>
+<a name="line444">444: </a><span style="color: #FF0000">}</span>
+<a name="line445">445: </a>
+<a name="line446">446: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* XMS_SUPPORTED */</span></span>
+<a name="line447">447: </a>
+<a name="line448">448: </a>
+<a name="line449">449: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line450">450: </a><span style="font-style: italic"><span style="color: #9A1900"> * Access methods for expanded memory.</span></span>
+<a name="line451">451: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line452">452: </a>
+<a name="line453">453: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> EMS_SUPPORTED
+<a name="line454">454: </a>
+<a name="line455">455: </a><span style="font-style: italic"><span style="color: #9A1900">/* The EMS move specification structure requires word and long fields aligned</span></span>
+<a name="line456">456: </a><span style="font-style: italic"><span style="color: #9A1900"> * at odd byte boundaries.  Some compilers will align struct fields at even</span></span>
+<a name="line457">457: </a><span style="font-style: italic"><span style="color: #9A1900"> * byte boundaries.  While it's usually possible to force byte alignment,</span></span>
+<a name="line458">458: </a><span style="font-style: italic"><span style="color: #9A1900"> * that causes an overall performance penalty and may pose problems in merging</span></span>
+<a name="line459">459: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG into a larger application.  Instead we accept some rather dirty code</span></span>
+<a name="line460">460: </a><span style="font-style: italic"><span style="color: #9A1900"> * here.  Note this code would fail if the hardware did not allow odd-byte</span></span>
+<a name="line461">461: </a><span style="font-style: italic"><span style="color: #9A1900"> * word &amp; long accesses, but all 80x86 CPUs do.</span></span>
+<a name="line462">462: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line463">463: </a>
+<a name="line464">464: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">void</span> far <span style="color: #990000">*</span> EMSPTR<span style="color: #990000">;</span>
+<a name="line465">465: </a>
+<a name="line466">466: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">union</span></span> <span style="color: #FF0000">{</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* EMS move specification structure */</span></span>
+<a name="line467">467: </a>        <span style="color: #009900">long</span> length<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* It's easy to access first 4 bytes */</span></span>
+<a name="line468">468: </a>        <span style="color: #009900">char</span> bytes<span style="color: #990000">[</span><span style="color: #993399">18</span><span style="color: #990000">]</span><span style="color: #990000">;</span>         <span style="font-style: italic"><span style="color: #9A1900">/* Misaligned fields in here! */</span></span>
+<a name="line469">469: </a>      <span style="color: #FF0000">}</span> EMSspec<span style="color: #990000">;</span>
+<a name="line470">470: </a>
+<a name="line471">471: </a><span style="font-style: italic"><span style="color: #9A1900">/* Macros for accessing misaligned fields */</span></span>
+<a name="line472">472: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span>offset<span style="color: #990000">,</span>type<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">*</span><span style="color: #990000">(</span><span style="color: #990000">(</span>type <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span><span style="color: #990000">(</span>spec<span style="color: #990000">.</span>bytes<span style="color: #990000">[</span>offset<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line473">473: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SRC_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>          <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">4</span><span style="color: #990000">,</span><span style="color: #009900">char</span><span style="color: #990000">)</span>
+<a name="line474">474: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SRC_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>        <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">5</span><span style="color: #990000">,</span>EMSH<span style="color: #990000">)</span>
+<a name="line475">475: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SRC_OFFSET</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>        <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">7</span><span style="color: #990000">,</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span>
+<a name="line476">476: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SRC_PAGE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>          <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">9</span><span style="color: #990000">,</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span>
+<a name="line477">477: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SRC_PTR</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>           <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">7</span><span style="color: #990000">,</span>EMSPTR<span style="color: #990000">)</span>
+<a name="line478">478: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DST_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>          <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">11</span><span style="color: #990000">,</span><span style="color: #009900">char</span><span style="color: #990000">)</span>
+<a name="line479">479: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DST_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>        <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">12</span><span style="color: #990000">,</span>EMSH<span style="color: #990000">)</span>
+<a name="line480">480: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DST_OFFSET</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>        <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">14</span><span style="color: #990000">,</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span>
+<a name="line481">481: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DST_PAGE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>          <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">16</span><span style="color: #990000">,</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span>
+<a name="line482">482: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">DST_PTR</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>           <span style="font-weight: bold"><span style="color: #000000">FIELD_AT</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">,</span><span style="color: #993399">14</span><span style="color: #990000">,</span>EMSPTR<span style="color: #990000">)</span>
+<a name="line483">483: </a>
+<a name="line484">484: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> EMSPAGESIZE     <span style="color: #993399">16384</span>L  <span style="font-style: italic"><span style="color: #9A1900">/* gospel, see the EMS specs */</span></span>
+<a name="line485">485: </a>
+<a name="line486">486: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>W<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>W<span style="color: #990000">)</span> <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">8</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span>
+<a name="line487">487: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">LOBYTE</span></span><span style="color: #990000">(</span>W<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>W<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span>
+<a name="line488">488: </a>
+<a name="line489">489: </a>
+<a name="line490">490: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line491">491: </a><span style="font-weight: bold"><span style="color: #000000">read_ems_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line492">492: </a>                <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line493">493: </a>                <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line494">494: </a><span style="color: #FF0000">{</span>
+<a name="line495">495: </a>  EMScontext ctx<span style="color: #990000">;</span>
+<a name="line496">496: </a>  EMSspec spec<span style="color: #990000">;</span>
+<a name="line497">497: </a>
+<a name="line498">498: </a>  spec<span style="color: #990000">.</span>length <span style="color: #990000">=</span> byte_count<span style="color: #990000">;</span>
+<a name="line499">499: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line500">500: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>ems_handle<span style="color: #990000">;</span>
+<a name="line501">501: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_PAGE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>   <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>file_offset <span style="color: #990000">/</span> EMSPAGESIZE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line502">502: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_OFFSET</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>file_offset <span style="color: #990000">%</span> EMSPAGESIZE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line503">503: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line504">504: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line505">505: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_PTR</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>    <span style="color: #990000">=</span> buffer_address<span style="color: #990000">;</span>
+<a name="line506">506: </a>  
+<a name="line507">507: </a>  ctx<span style="color: #990000">.</span>ds_si <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> spec<span style="color: #990000">;</span>
+<a name="line508">508: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x5700</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* move memory region */</span></span>
+<a name="line509">509: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line510">510: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line511">511: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_EMS_READ<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line512">512: </a><span style="color: #FF0000">}</span>
+<a name="line513">513: </a>
+<a name="line514">514: </a>
+<a name="line515">515: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line516">516: </a><span style="font-weight: bold"><span style="color: #000000">write_ems_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line517">517: </a>                 <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line518">518: </a>                 <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line519">519: </a><span style="color: #FF0000">{</span>
+<a name="line520">520: </a>  EMScontext ctx<span style="color: #990000">;</span>
+<a name="line521">521: </a>  EMSspec spec<span style="color: #990000">;</span>
+<a name="line522">522: </a>
+<a name="line523">523: </a>  spec<span style="color: #990000">.</span>length <span style="color: #990000">=</span> byte_count<span style="color: #990000">;</span>
+<a name="line524">524: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line525">525: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line526">526: </a>  <span style="font-weight: bold"><span style="color: #000000">SRC_PTR</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>    <span style="color: #990000">=</span> buffer_address<span style="color: #990000">;</span>
+<a name="line527">527: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_TYPE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line528">528: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_HANDLE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>ems_handle<span style="color: #990000">;</span>
+<a name="line529">529: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_PAGE</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span>   <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>file_offset <span style="color: #990000">/</span> EMSPAGESIZE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line530">530: </a>  <span style="font-weight: bold"><span style="color: #000000">DST_OFFSET</span></span><span style="color: #990000">(</span>spec<span style="color: #990000">)</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>file_offset <span style="color: #990000">%</span> EMSPAGESIZE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line531">531: </a>  
+<a name="line532">532: </a>  ctx<span style="color: #990000">.</span>ds_si <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> spec<span style="color: #990000">;</span>
+<a name="line533">533: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x5700</span><span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* move memory region */</span></span>
+<a name="line534">534: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line535">535: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line536">536: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_EMS_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line537">537: </a><span style="color: #FF0000">}</span>
+<a name="line538">538: </a>
+<a name="line539">539: </a>
+<a name="line540">540: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line541">541: </a><span style="font-weight: bold"><span style="color: #000000">close_ems_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">)</span>
+<a name="line542">542: </a><span style="color: #FF0000">{</span>
+<a name="line543">543: </a>  EMScontext ctx<span style="color: #990000">;</span>
+<a name="line544">544: </a>
+<a name="line545">545: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x4500</span><span style="color: #990000">;</span>
+<a name="line546">546: </a>  ctx<span style="color: #990000">.</span>dx <span style="color: #990000">=</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>ems_handle<span style="color: #990000">;</span>
+<a name="line547">547: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line548">548: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMS1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_EMS_CLOSE<span style="color: #990000">,</span> info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>ems_handle<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line549">549: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* we ignore any error return from the driver */</span></span>
+<a name="line550">550: </a><span style="color: #FF0000">}</span>
+<a name="line551">551: </a>
+<a name="line552">552: </a>
+<a name="line553">553: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line554">554: </a><span style="font-weight: bold"><span style="color: #000000">open_ems_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line555">555: </a>                <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line556">556: </a><span style="color: #FF0000">{</span>
+<a name="line557">557: </a>  EMScontext ctx<span style="color: #990000">;</span>
+<a name="line558">558: </a>
+<a name="line559">559: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Is EMS driver there? */</span></span>
+<a name="line560">560: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="font-weight: bold"><span style="color: #000000">jems_available</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line561">561: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line562">562: </a>
+<a name="line563">563: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get status, make sure EMS is OK */</span></span>
+<a name="line564">564: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x4000</span><span style="color: #990000">;</span>
+<a name="line565">565: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line566">566: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line567">567: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line568">568: </a>
+<a name="line569">569: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get version, must be &gt;= 4.0 */</span></span>
+<a name="line570">570: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x4600</span><span style="color: #990000">;</span>
+<a name="line571">571: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line572">572: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> <span style="font-weight: bold"><span style="color: #000000">LOBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">&lt;</span> <span style="color: #993399">0x40</span><span style="color: #990000">)</span>
+<a name="line573">573: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line574">574: </a>
+<a name="line575">575: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Try to allocate requested space */</span></span>
+<a name="line576">576: </a>  ctx<span style="color: #990000">.</span>ax <span style="color: #990000">=</span> <span style="color: #993399">0x4300</span><span style="color: #990000">;</span>
+<a name="line577">577: </a>  ctx<span style="color: #990000">.</span>bx <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">short</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>total_bytes_needed <span style="color: #990000">+</span> EMSPAGESIZE<span style="color: #990000">-</span><span style="color: #993399">1</span>L<span style="color: #990000">)</span> <span style="color: #990000">/</span> EMSPAGESIZE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line578">578: </a>  <span style="font-weight: bold"><span style="color: #000000">jems_calldriver</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>EMScontext far <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> ctx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line579">579: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">HIBYTE</span></span><span style="color: #990000">(</span>ctx<span style="color: #990000">.</span>ax<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line580">580: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> FALSE<span style="color: #990000">;</span>
+<a name="line581">581: </a>
+<a name="line582">582: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Succeeded, save the handle and away we go */</span></span>
+<a name="line583">583: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>handle<span style="color: #990000">.</span>ems_handle <span style="color: #990000">=</span> ctx<span style="color: #990000">.</span>dx<span style="color: #990000">;</span>
+<a name="line584">584: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>read_backing_store <span style="color: #990000">=</span> read_ems_store<span style="color: #990000">;</span>
+<a name="line585">585: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_backing_store <span style="color: #990000">=</span> write_ems_store<span style="color: #990000">;</span>
+<a name="line586">586: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>close_backing_store <span style="color: #990000">=</span> close_ems_store<span style="color: #990000">;</span>
+<a name="line587">587: </a>  <span style="font-weight: bold"><span style="color: #000000">TRACEMS1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> JTRC_EMS_OPEN<span style="color: #990000">,</span> ctx<span style="color: #990000">.</span>dx<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line588">588: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* succeeded */</span></span>
+<a name="line589">589: </a><span style="color: #FF0000">}</span>
+<a name="line590">590: </a>
+<a name="line591">591: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* EMS_SUPPORTED */</span></span>
+<a name="line592">592: </a>
+<a name="line593">593: </a>
+<a name="line594">594: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line595">595: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initial opening of a backing-store object.</span></span>
+<a name="line596">596: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line597">597: </a>
+<a name="line598">598: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line599">599: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_open_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line600">600: </a>                         <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line601">601: </a><span style="color: #FF0000">{</span>
+<a name="line602">602: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Try extended memory, then expanded memory, then regular file. */</span></span>
+<a name="line603">603: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> XMS_SUPPORTED
+<a name="line604">604: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">open_xms_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> total_bytes_needed<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line605">605: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>
+<a name="line606">606: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line607">607: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> EMS_SUPPORTED
+<a name="line608">608: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">open_ems_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> total_bytes_needed<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line609">609: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>
+<a name="line610">610: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line611">611: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">open_file_store</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> info<span style="color: #990000">,</span> total_bytes_needed<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line612">612: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>
+<a name="line613">613: </a>  <span style="font-weight: bold"><span style="color: #000000">ERREXITS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_CREATE<span style="color: #990000">,</span> <span style="color: #FF0000">""</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line614">614: </a><span style="color: #FF0000">}</span>
+<a name="line615">615: </a>
+<a name="line616">616: </a>
+<a name="line617">617: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line618">618: </a><span style="font-style: italic"><span style="color: #9A1900"> * These routines take care of any system-dependent initialization and</span></span>
+<a name="line619">619: </a><span style="font-style: italic"><span style="color: #9A1900"> * cleanup required.</span></span>
+<a name="line620">620: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line621">621: </a>
+<a name="line622">622: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line623">623: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_init</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line624">624: </a><span style="color: #FF0000">{</span>
+<a name="line625">625: </a>  next_file_num <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* initialize temp file name generator */</span></span>
+<a name="line626">626: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> DEFAULT_MAX_MEM<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* default for max_memory_to_use */</span></span>
+<a name="line627">627: </a><span style="color: #FF0000">}</span>
+<a name="line628">628: </a>
+<a name="line629">629: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line630">630: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_term</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line631">631: </a><span style="color: #FF0000">{</span>
+<a name="line632">632: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Microsoft C, at least in v6.00A, will not successfully reclaim freed</span></span>
+<a name="line633">633: </a><span style="font-style: italic"><span style="color: #9A1900">   * blocks of size &gt; 32Kbytes unless we give it a kick in the rear, like so:</span></span>
+<a name="line634">634: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line635">635: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_FHEAPMIN
+<a name="line636">636: </a>  <span style="font-weight: bold"><span style="color: #000000">_fheapmin</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line637">637: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line638">638: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jcapimin.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jcapimin.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1998, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains application interface code for the compression half</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * of the JPEG library.  These are the "minimum" API routines that may be</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * needed in either the normal full-compression case or the transcoding-only</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * case.</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * Most of the routines intended to be called directly by an application</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * are in this file or in jcapistd.c.  But also see jcparam.c for</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * parameter-setup helper routines, jcomapi.c for routines shared by</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * compression and decompression, and jctrans.c for the transcoding case.</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line18">018: </a>
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line22">022: </a>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialization of a JPEG compression object.</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * The error manager must already be set up (in case memory manager fails).</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line28">028: </a>
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line30">030: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_CreateCompress</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> version<span style="color: #990000">,</span> size_t structsize<span style="color: #990000">)</span>
+<a name="line31">031: </a><span style="color: #FF0000">{</span>
+<a name="line32">032: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line33">033: </a>
+<a name="line34">034: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Guard against version mismatches between library and caller. */</span></span>
+<a name="line35">035: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* so jpeg_destroy knows mem mgr not called */</span></span>
+<a name="line36">036: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>version <span style="color: #990000">!</span><span style="color: #990000">=</span> JPEG_LIB_VERSION<span style="color: #990000">)</span>
+<a name="line37">037: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT2</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_LIB_VERSION<span style="color: #990000">,</span> JPEG_LIB_VERSION<span style="color: #990000">,</span> version<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line38">038: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>structsize <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_compress_struct<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line39">039: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT2</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STRUCT_SIZE<span style="color: #990000">,</span> 
+<a name="line40">040: </a>             <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_compress_struct<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> structsize<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line41">041: </a>
+<a name="line42">042: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* For debugging purposes, we zero the whole master structure.</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900">   * But the application has already set the err pointer, and may have set</span></span>
+<a name="line44">044: </a><span style="font-style: italic"><span style="color: #9A1900">   * client_data, so we have to save and restore those fields.</span></span>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note: if application hasn't set client_data, tools like Purify may</span></span>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900">   * complain here.</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line48">048: </a>  <span style="color: #FF0000">{</span>
+<a name="line49">049: </a>    <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_error_mgr <span style="color: #990000">*</span> err <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>err<span style="color: #990000">;</span>
+<a name="line50">050: </a>    <span style="color: #009900">void</span> <span style="color: #990000">*</span> client_data <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>client_data<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* ignore Purify complaint here */</span></span>
+<a name="line51">051: </a>    <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_compress_struct<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line52">052: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>err <span style="color: #990000">=</span> err<span style="color: #990000">;</span>
+<a name="line53">053: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>client_data <span style="color: #990000">=</span> client_data<span style="color: #990000">;</span>
+<a name="line54">054: </a>  <span style="color: #FF0000">}</span>
+<a name="line55">055: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>is_decompressor <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line56">056: </a>
+<a name="line57">057: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize a memory manager instance for this object */</span></span>
+<a name="line58">058: </a>  <span style="font-weight: bold"><span style="color: #000000">jinit_memory_mgr</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line59">059: </a>
+<a name="line60">060: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Zero out pointers to permanent structures. */</span></span>
+<a name="line61">061: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line62">062: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line63">063: </a>
+<a name="line64">064: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line65">065: </a>
+<a name="line66">066: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_QUANT_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line67">067: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line68">068: </a>
+<a name="line69">069: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_HUFF_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line70">070: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line71">071: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line72">072: </a>  <span style="color: #FF0000">}</span>
+<a name="line73">073: </a>
+<a name="line74">074: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>script_space <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line75">075: </a>
+<a name="line76">076: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>input_gamma <span style="color: #990000">=</span> <span style="color: #993399">1.0</span><span style="color: #990000">;</span>     <span style="font-style: italic"><span style="color: #9A1900">/* in case application forgets */</span></span>
+<a name="line77">077: </a>
+<a name="line78">078: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* OK, I'm ready */</span></span>
+<a name="line79">079: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> CSTATE_START<span style="color: #990000">;</span>
+<a name="line80">080: </a><span style="color: #FF0000">}</span>
+<a name="line81">081: </a>
+<a name="line82">082: </a>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> * Destruction of a JPEG compression object</span></span>
+<a name="line85">085: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line86">086: </a>
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_destroy_compress</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line89">089: </a><span style="color: #FF0000">{</span>
+<a name="line90">090: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_destroy</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* use common routine */</span></span>
+<a name="line91">091: </a><span style="color: #FF0000">}</span>
+<a name="line92">092: </a>
+<a name="line93">093: </a>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * Abort processing of a JPEG compression operation,</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * but don't destroy the object itself.</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line98">098: </a>
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line100">100: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_abort_compress</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line101">101: </a><span style="color: #FF0000">{</span>
+<a name="line102">102: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_abort</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* use common routine */</span></span>
+<a name="line103">103: </a><span style="color: #FF0000">}</span>
+<a name="line104">104: </a>
+<a name="line105">105: </a>
+<a name="line106">106: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line107">107: </a><span style="font-style: italic"><span style="color: #9A1900"> * Forcibly suppress or un-suppress all quantization and Huffman tables.</span></span>
+<a name="line108">108: </a><span style="font-style: italic"><span style="color: #9A1900"> * Marks all currently defined tables as already written (if suppress)</span></span>
+<a name="line109">109: </a><span style="font-style: italic"><span style="color: #9A1900"> * or not written (if !suppress).  This will control whether they get emitted</span></span>
+<a name="line110">110: </a><span style="font-style: italic"><span style="color: #9A1900"> * by a subsequent jpeg_start_compress call.</span></span>
+<a name="line111">111: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line112">112: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine is exported for use by applications that want to produce</span></span>
+<a name="line113">113: </a><span style="font-style: italic"><span style="color: #9A1900"> * abbreviated JPEG datastreams.  It logically belongs in jcparam.c, but</span></span>
+<a name="line114">114: </a><span style="font-style: italic"><span style="color: #9A1900"> * since it is called by jpeg_start_compress, we put it here --- otherwise</span></span>
+<a name="line115">115: </a><span style="font-style: italic"><span style="color: #9A1900"> * jcparam.o would be linked whether the application used it or not.</span></span>
+<a name="line116">116: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line117">117: </a>
+<a name="line118">118: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_suppress_tables</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> boolean suppress<span style="color: #990000">)</span>
+<a name="line120">120: </a><span style="color: #FF0000">{</span>
+<a name="line121">121: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line122">122: </a>  JQUANT_TBL <span style="color: #990000">*</span> qtbl<span style="color: #990000">;</span>
+<a name="line123">123: </a>  JHUFF_TBL <span style="color: #990000">*</span> htbl<span style="color: #990000">;</span>
+<a name="line124">124: </a>
+<a name="line125">125: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_QUANT_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line126">126: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>qtbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>quant_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line127">127: </a>      qtbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> suppress<span style="color: #990000">;</span>
+<a name="line128">128: </a>  <span style="color: #FF0000">}</span>
+<a name="line129">129: </a>
+<a name="line130">130: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_HUFF_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line131">131: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>htbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line132">132: </a>      htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> suppress<span style="color: #990000">;</span>
+<a name="line133">133: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>htbl <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_huff_tbl_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line134">134: </a>      htbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> suppress<span style="color: #990000">;</span>
+<a name="line135">135: </a>  <span style="color: #FF0000">}</span>
+<a name="line136">136: </a><span style="color: #FF0000">}</span>
+<a name="line137">137: </a>
+<a name="line138">138: </a>
+<a name="line139">139: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line140">140: </a><span style="font-style: italic"><span style="color: #9A1900"> * Finish JPEG compression.</span></span>
+<a name="line141">141: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line142">142: </a><span style="font-style: italic"><span style="color: #9A1900"> * If a multipass operating mode was selected, this may do a great deal of</span></span>
+<a name="line143">143: </a><span style="font-style: italic"><span style="color: #9A1900"> * work including most of the actual output.</span></span>
+<a name="line144">144: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line145">145: </a>
+<a name="line146">146: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line147">147: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_finish_compress</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line148">148: </a><span style="color: #FF0000">{</span>
+<a name="line149">149: </a>  JDIMENSION iMCU_row<span style="color: #990000">;</span>
+<a name="line150">150: </a>
+<a name="line151">151: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> CSTATE_SCANNING <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line152">152: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> CSTATE_RAW_OK<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line153">153: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Terminate first pass */</span></span>
+<a name="line154">154: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_scanline <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>image_height<span style="color: #990000">)</span>
+<a name="line155">155: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TOO_LITTLE_DATA<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line156">156: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>master<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>finish_pass<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line157">157: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_WRCOEFS<span style="color: #990000">)</span>
+<a name="line158">158: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STATE<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line159">159: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Perform any remaining passes */</span></span>
+<a name="line160">160: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>master<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>is_last_pass<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line161">161: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>master<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>prepare_for_pass<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line162">162: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>iMCU_row <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> iMCU_row <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_iMCU_rows<span style="color: #990000">;</span> iMCU_row<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line163">163: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line164">164: </a>        cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_counter <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> iMCU_row<span style="color: #990000">;</span>
+<a name="line165">165: </a>        cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_limit <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_iMCU_rows<span style="color: #990000">;</span>
+<a name="line166">166: </a>        <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress_monitor<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line167">167: </a>      <span style="color: #FF0000">}</span>
+<a name="line168">168: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* We bypass the main controller and invoke coef controller directly;</span></span>
+<a name="line169">169: </a><span style="font-style: italic"><span style="color: #9A1900">       * all work is being done from the coefficient buffer.</span></span>
+<a name="line170">170: </a><span style="font-style: italic"><span style="color: #9A1900">       */</span></span>
+<a name="line171">171: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>coef<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>compress_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>JSAMPIMAGE<span style="color: #990000">)</span> NULL<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line172">172: </a>        <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_CANT_SUSPEND<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line173">173: </a>    <span style="color: #FF0000">}</span>
+<a name="line174">174: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>master<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>finish_pass<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line175">175: </a>  <span style="color: #FF0000">}</span>
+<a name="line176">176: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Write EOI, do final cleanup */</span></span>
+<a name="line177">177: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_file_trailer<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line178">178: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>term_destination<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line179">179: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We can use jpeg_abort to release memory and reset global_state */</span></span>
+<a name="line180">180: </a>  <span style="font-weight: bold"><span style="color: #000000">jpeg_abort</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line181">181: </a><span style="color: #FF0000">}</span>
+<a name="line182">182: </a>
+<a name="line183">183: </a>
+<a name="line184">184: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900"> * Write a special marker.</span></span>
+<a name="line186">186: </a><span style="font-style: italic"><span style="color: #9A1900"> * This is only recommended for writing COM or APPn markers.</span></span>
+<a name="line187">187: </a><span style="font-style: italic"><span style="color: #9A1900"> * Must be called after jpeg_start_compress() and before</span></span>
+<a name="line188">188: </a><span style="font-style: italic"><span style="color: #9A1900"> * first call to jpeg_write_scanlines() or jpeg_write_raw_data().</span></span>
+<a name="line189">189: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line190">190: </a>
+<a name="line191">191: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line192">192: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_write_marker</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> marker<span style="color: #990000">,</span>
+<a name="line193">193: </a>                   <span style="font-weight: bold"><span style="color: #0000FF">const</span></span> JOCTET <span style="color: #990000">*</span>dataptr<span style="color: #990000">,</span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> datalen<span style="color: #990000">)</span>
+<a name="line194">194: </a><span style="color: #FF0000">{</span>
+<a name="line195">195: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> write_marker_byte<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_compress_ptr info<span style="color: #990000">,</span> <span style="color: #009900">int</span> val<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line196">196: </a>
+<a name="line197">197: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_scanline <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span> <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line198">198: </a>      <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_SCANNING <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span>
+<a name="line199">199: </a>       cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_RAW_OK <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span>
+<a name="line200">200: </a>       cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_WRCOEFS<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line201">201: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STATE<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line202">202: </a>
+<a name="line203">203: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_marker_header<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> marker<span style="color: #990000">,</span> datalen<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line204">204: </a>  write_marker_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_marker_byte<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* copy for speed */</span></span>
+<a name="line205">205: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>datalen<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line206">206: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>write_marker_byte<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">*</span>dataptr<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line207">207: </a>    dataptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line208">208: </a>  <span style="color: #FF0000">}</span>
+<a name="line209">209: </a><span style="color: #FF0000">}</span>
+<a name="line210">210: </a>
+<a name="line211">211: </a><span style="font-style: italic"><span style="color: #9A1900">/* Same, but piecemeal. */</span></span>
+<a name="line212">212: </a>
+<a name="line213">213: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line214">214: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_write_m_header</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> marker<span style="color: #990000">,</span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> datalen<span style="color: #990000">)</span>
+<a name="line215">215: </a><span style="color: #FF0000">{</span>
+<a name="line216">216: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_scanline <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span> <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line217">217: </a>      <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_SCANNING <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span>
+<a name="line218">218: </a>       cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_RAW_OK <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span>
+<a name="line219">219: </a>       cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_WRCOEFS<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line220">220: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STATE<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line221">221: </a>
+<a name="line222">222: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_marker_header<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> marker<span style="color: #990000">,</span> datalen<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line223">223: </a><span style="color: #FF0000">}</span>
+<a name="line224">224: </a>
+<a name="line225">225: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line226">226: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_write_m_byte</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">int</span> val<span style="color: #990000">)</span>
+<a name="line227">227: </a><span style="color: #FF0000">{</span>
+<a name="line228">228: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_marker_byte<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> val<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line229">229: </a><span style="color: #FF0000">}</span>
+<a name="line230">230: </a>
+<a name="line231">231: </a>
+<a name="line232">232: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line233">233: </a><span style="font-style: italic"><span style="color: #9A1900"> * Alternate compression function: just write an abbreviated table file.</span></span>
+<a name="line234">234: </a><span style="font-style: italic"><span style="color: #9A1900"> * Before calling this, all parameters and a data destination must be set up.</span></span>
+<a name="line235">235: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line236">236: </a><span style="font-style: italic"><span style="color: #9A1900"> * To produce a pair of files containing abbreviated tables and abbreviated</span></span>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900"> * image data, one would proceed as follows:</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900"> *              initialize JPEG object</span></span>
+<a name="line240">240: </a><span style="font-style: italic"><span style="color: #9A1900"> *              set JPEG parameters</span></span>
+<a name="line241">241: </a><span style="font-style: italic"><span style="color: #9A1900"> *              set destination to table file</span></span>
+<a name="line242">242: </a><span style="font-style: italic"><span style="color: #9A1900"> *              jpeg_write_tables(cinfo);</span></span>
+<a name="line243">243: </a><span style="font-style: italic"><span style="color: #9A1900"> *              set destination to image file</span></span>
+<a name="line244">244: </a><span style="font-style: italic"><span style="color: #9A1900"> *              jpeg_start_compress(cinfo, FALSE);</span></span>
+<a name="line245">245: </a><span style="font-style: italic"><span style="color: #9A1900"> *              write data...</span></span>
+<a name="line246">246: </a><span style="font-style: italic"><span style="color: #9A1900"> *              jpeg_finish_compress(cinfo);</span></span>
+<a name="line247">247: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line248">248: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_write_tables has the side effect of marking all tables written</span></span>
+<a name="line249">249: </a><span style="font-style: italic"><span style="color: #9A1900"> * (same as jpeg_suppress_tables(..., TRUE)).  Thus a subsequent start_compress</span></span>
+<a name="line250">250: </a><span style="font-style: italic"><span style="color: #9A1900"> * will not re-emit the tables unless it is passed write_all_tables=TRUE.</span></span>
+<a name="line251">251: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line252">252: </a>
+<a name="line253">253: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line254">254: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_write_tables</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line255">255: </a><span style="color: #FF0000">{</span>
+<a name="line256">256: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">!</span><span style="color: #990000">=</span> CSTATE_START<span style="color: #990000">)</span>
+<a name="line257">257: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STATE<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line258">258: </a>
+<a name="line259">259: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* (Re)initialize error mgr and destination modules */</span></span>
+<a name="line260">260: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>err<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>reset_error_mgr<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line261">261: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>init_destination<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line262">262: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize the marker writer ... bit of a crock to do it here. */</span></span>
+<a name="line263">263: </a>  <span style="font-weight: bold"><span style="color: #000000">jinit_marker_writer</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line264">264: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Write them tables! */</span></span>
+<a name="line265">265: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_tables_only<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line266">266: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* And clean up. */</span></span>
+<a name="line267">267: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>term_destination<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line268">268: </a>  <span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line269">269: </a><span style="font-style: italic"><span style="color: #9A1900">   * In library releases up through v6a, we called jpeg_abort() here to free</span></span>
+<a name="line270">270: </a><span style="font-style: italic"><span style="color: #9A1900">   * any working memory allocated by the destination manager and marker</span></span>
+<a name="line271">271: </a><span style="font-style: italic"><span style="color: #9A1900">   * writer.  Some applications had a problem with that: they allocated space</span></span>
+<a name="line272">272: </a><span style="font-style: italic"><span style="color: #9A1900">   * of their own from the library memory manager, and didn't want it to go</span></span>
+<a name="line273">273: </a><span style="font-style: italic"><span style="color: #9A1900">   * away during write_tables.  So now we do nothing.  This will cause a</span></span>
+<a name="line274">274: </a><span style="font-style: italic"><span style="color: #9A1900">   * memory leak if an app calls write_tables repeatedly without doing a full</span></span>
+<a name="line275">275: </a><span style="font-style: italic"><span style="color: #9A1900">   * compression cycle or otherwise resetting the JPEG object.  However, that</span></span>
+<a name="line276">276: </a><span style="font-style: italic"><span style="color: #9A1900">   * seems less bad than unexpectedly freeing memory in the normal case.</span></span>
+<a name="line277">277: </a><span style="font-style: italic"><span style="color: #9A1900">   * An app that prefers the old behavior can call jpeg_abort for itself after</span></span>
+<a name="line278">278: </a><span style="font-style: italic"><span style="color: #9A1900">   * each call to jpeg_write_tables().</span></span>
+<a name="line279">279: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line280">280: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

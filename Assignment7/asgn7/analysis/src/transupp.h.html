@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/transupp.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * transupp.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains declarations for image transformation routines and</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * other utility code used by the jpegtran sample application.  These are</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * NOT part of the core JPEG library.  But we keep these routines separate</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * from jpegtran.c to ease the task of maintaining jpegtran-like programs</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * that have other user interfaces.</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * NOTE: all the routines declared here have very specific requirements</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * about when they are to be executed during the reading and writing of the</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * source and destination files.  See the comments in transupp.c, or see</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpegtran.c for an example of correct usage.</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line19">019: </a>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900">/* If you happen not to want the image transform support, disable it here */</span></span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> TRANSFORMS_SUPPORTED
+<a name="line22">022: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> TRANSFORMS_SUPPORTED <span style="color: #993399">1</span>          <span style="font-style: italic"><span style="color: #9A1900">/* 0 disables transform code */</span></span>
+<a name="line23">023: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line24">024: </a>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line26">026: </a>
+<a name="line27">027: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line28">028: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jtransform_request_workspace            jTrRequest
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jtransform_adjust_parameters            jTrAdjust
+<a name="line30">030: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jtransform_execute_transformation       jTrExec
+<a name="line31">031: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jcopy_markers_setup                     jCMrkSetup
+<a name="line32">032: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jcopy_markers_execute                   jCMrkExec
+<a name="line33">033: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a>
+<a name="line36">036: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900"> * Codes for supported types of image transformations.</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line39">039: </a>
+<a name="line40">040: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">enum</span></span> <span style="color: #FF0000">{</span>
+<a name="line41">041: </a>        JXFORM_NONE<span style="color: #990000">,</span>            <span style="font-style: italic"><span style="color: #9A1900">/* no transformation */</span></span>
+<a name="line42">042: </a>        JXFORM_FLIP_H<span style="color: #990000">,</span>          <span style="font-style: italic"><span style="color: #9A1900">/* horizontal flip */</span></span>
+<a name="line43">043: </a>        JXFORM_FLIP_V<span style="color: #990000">,</span>          <span style="font-style: italic"><span style="color: #9A1900">/* vertical flip */</span></span>
+<a name="line44">044: </a>        JXFORM_TRANSPOSE<span style="color: #990000">,</span>       <span style="font-style: italic"><span style="color: #9A1900">/* transpose across UL-to-LR axis */</span></span>
+<a name="line45">045: </a>        JXFORM_TRANSVERSE<span style="color: #990000">,</span>      <span style="font-style: italic"><span style="color: #9A1900">/* transpose across UR-to-LL axis */</span></span>
+<a name="line46">046: </a>        JXFORM_ROT_90<span style="color: #990000">,</span>          <span style="font-style: italic"><span style="color: #9A1900">/* 90-degree clockwise rotation */</span></span>
+<a name="line47">047: </a>        JXFORM_ROT_180<span style="color: #990000">,</span>         <span style="font-style: italic"><span style="color: #9A1900">/* 180-degree rotation */</span></span>
+<a name="line48">048: </a>        JXFORM_ROT_270          <span style="font-style: italic"><span style="color: #9A1900">/* 270-degree clockwise (or 90 ccw) */</span></span>
+<a name="line49">049: </a><span style="color: #FF0000">}</span> JXFORM_CODE<span style="color: #990000">;</span>
+<a name="line50">050: </a>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> * Although rotating and flipping data expressed as DCT coefficients is not</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> * hard, there is an asymmetry in the JPEG format specification for images</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> * whose dimensions aren't multiples of the iMCU size.  The right and bottom</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * image edges are padded out to the next iMCU boundary with junk data; but</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> * no padding is possible at the top and left edges.  If we were to flip</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * the whole image including the pad data, then pad garbage would become</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * visible at the top and/or left, and real pixels would disappear into the</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> * pad margins --- perhaps permanently, since encoders &amp; decoders may not</span></span>
+<a name="line60">060: </a><span style="font-style: italic"><span style="color: #9A1900"> * bother to preserve DCT blocks that appear to be completely outside the</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900"> * nominal image area.  So, we have to exclude any partial iMCUs from the</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * basic transformation.</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> * Transpose is the only transformation that can handle partial iMCUs at the</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * right and bottom edges completely cleanly.  flip_h can flip partial iMCUs</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * at the bottom, but leaves any partial iMCUs at the right edge untouched.</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * Similarly flip_v leaves any partial iMCUs at the bottom edge untouched.</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * The other transforms are defined as combinations of these basic transforms</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * and process edge blocks in a way that preserves the equivalence.</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * The "trim" option causes untransformable partial iMCUs to be dropped;</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> * this is not strictly lossless, but it usually gives the best-looking</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * result for odd-size images.  Note that when this option is active,</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * the expected mathematical equivalences between the transforms may not hold.</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> * (For example, -rot 270 -trim trims only the bottom edge, but -rot 90 -trim</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * followed by -rot 180 -trim trims both edges.)</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> * We also offer a "force to grayscale" option, which simply discards the</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900"> * chrominance channels of a YCbCr image.  This is lossless in the sense that</span></span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900"> * the luminance channel is preserved exactly.  It's not the same kind of</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> * thing as the rotate/flip transformations, but it's convenient to handle it</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> * as part of this package, mainly because the transformation routines have to</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> * be aware of the option to know how many components to work on.</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line85">085: </a>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line87">087: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Options: set by caller */</span></span>
+<a name="line88">088: </a>  JXFORM_CODE transform<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* image transform operator */</span></span>
+<a name="line89">089: </a>  boolean trim<span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* if TRUE, trim partial MCUs as needed */</span></span>
+<a name="line90">090: </a>  boolean force_grayscale<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* if TRUE, convert color image to grayscale */</span></span>
+<a name="line91">091: </a>
+<a name="line92">092: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Internal workspace: caller should not touch these */</span></span>
+<a name="line93">093: </a>  <span style="color: #009900">int</span> num_components<span style="color: #990000">;</span>           <span style="font-style: italic"><span style="color: #9A1900">/* # of components in workspace */</span></span>
+<a name="line94">094: </a>  jvirt_barray_ptr <span style="color: #990000">*</span> workspace_coef_arrays<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* workspace for transformations */</span></span>
+<a name="line95">095: </a><span style="color: #FF0000">}</span> jpeg_transform_info<span style="color: #990000">;</span>
+<a name="line96">096: </a>
+<a name="line97">097: </a>
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> TRANSFORMS_SUPPORTED
+<a name="line99">099: </a>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900">/* Request any required workspace */</span></span>
+<a name="line101">101: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jtransform_request_workspace
+<a name="line102">102: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr srcinfo<span style="color: #990000">,</span> jpeg_transform_info <span style="color: #990000">*</span>info<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900">/* Adjust output image parameters */</span></span>
+<a name="line104">104: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>jvirt_barray_ptr <span style="color: #990000">*</span><span style="color: #990000">)</span> jtransform_adjust_parameters
+<a name="line105">105: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr srcinfo<span style="color: #990000">,</span> j_compress_ptr dstinfo<span style="color: #990000">,</span>
+<a name="line106">106: </a>             jvirt_barray_ptr <span style="color: #990000">*</span>src_coef_arrays<span style="color: #990000">,</span>
+<a name="line107">107: </a>             jpeg_transform_info <span style="color: #990000">*</span>info<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line108">108: </a><span style="font-style: italic"><span style="color: #9A1900">/* Execute the actual transformation, if any */</span></span>
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jtransform_execute_transformation
+<a name="line110">110: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr srcinfo<span style="color: #990000">,</span> j_compress_ptr dstinfo<span style="color: #990000">,</span>
+<a name="line111">111: </a>             jvirt_barray_ptr <span style="color: #990000">*</span>src_coef_arrays<span style="color: #990000">,</span>
+<a name="line112">112: </a>             jpeg_transform_info <span style="color: #990000">*</span>info<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line113">113: </a>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* TRANSFORMS_SUPPORTED */</span></span>
+<a name="line115">115: </a>
+<a name="line116">116: </a>
+<a name="line117">117: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line118">118: </a><span style="font-style: italic"><span style="color: #9A1900"> * Support for copying optional markers from source to destination file.</span></span>
+<a name="line119">119: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line120">120: </a>
+<a name="line121">121: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">enum</span></span> <span style="color: #FF0000">{</span>
+<a name="line122">122: </a>        JCOPYOPT_NONE<span style="color: #990000">,</span>          <span style="font-style: italic"><span style="color: #9A1900">/* copy no optional markers */</span></span>
+<a name="line123">123: </a>        JCOPYOPT_COMMENTS<span style="color: #990000">,</span>      <span style="font-style: italic"><span style="color: #9A1900">/* copy only comment (COM) markers */</span></span>
+<a name="line124">124: </a>        JCOPYOPT_ALL            <span style="font-style: italic"><span style="color: #9A1900">/* copy all optional markers */</span></span>
+<a name="line125">125: </a><span style="color: #FF0000">}</span> JCOPY_OPTION<span style="color: #990000">;</span>
+<a name="line126">126: </a>
+<a name="line127">127: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JCOPYOPT_DEFAULT  JCOPYOPT_COMMENTS     <span style="font-style: italic"><span style="color: #9A1900">/* recommended default */</span></span>
+<a name="line128">128: </a>
+<a name="line129">129: </a><span style="font-style: italic"><span style="color: #9A1900">/* Setup decompression object to save desired markers in memory */</span></span>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jcopy_markers_setup
+<a name="line131">131: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr srcinfo<span style="color: #990000">,</span> JCOPY_OPTION option<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900">/* Copy markers saved in the given source object to the destination object */</span></span>
+<a name="line133">133: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jcopy_markers_execute
+<a name="line134">134: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr srcinfo<span style="color: #990000">,</span> j_compress_ptr dstinfo<span style="color: #990000">,</span>
+<a name="line135">135: </a>             JCOPY_OPTION option<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+</tt>
+</pre>
+</body>
+</html>

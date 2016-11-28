@@ -1,0 +1,187 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jfdctflt.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jfdctflt.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains a floating-point implementation of the</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * forward DCT (Discrete Cosine Transform).</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * This implementation should be more accurate than either of the integer</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * DCT implementations.  However, it may not give the same results on all</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * machines because of differences in roundoff behavior.  Speed will depend</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * on the hardware's floating point capacity.</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * A 2-D DCT can be done by 1-D DCT on each row followed by 1-D DCT</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * on each column.  Direct algorithms are also available, but they are</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * much more complex and seem not to be any faster when reduced to code.</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> * This implementation is based on Arai, Agui, and Nakajima's algorithm for</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * scaled DCT.  Their original paper (Trans. IEICE E-71(11):1095) is in</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> * Japanese, but the algorithm is described in the Pennebaker &amp; Mitchell</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG textbook (see REFERENCES section in file README).  The following code</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * is based directly on figure 4-8 in P&amp;M.</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * While an 8-point DCT cannot be done in less than 11 multiplies, it is</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * possible to arrange the computation so that many of the multiplies are</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> * simple scalings of the final outputs.  These multiplies can then be</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * folded into the multiplications or divisions by the JPEG quantization</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * table entries.  The AA&amp;N method leaves only 5 multiplies and 29 adds</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * to be done in the DCT itself.</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * The primary disadvantage of this method is that with a fixed-point</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * implementation, accuracy is lost due to imprecise representation of the</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> * scaled quantization values.  However, that problem does not arise if</span></span>
+<a name="line34">034: </a><span style="font-style: italic"><span style="color: #9A1900"> * we use floating point arithmetic.</span></span>
+<a name="line35">035: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line36">036: </a>
+<a name="line37">037: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line38">038: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line39">039: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line40">040: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jdct.h"</span>         <span style="font-style: italic"><span style="color: #9A1900">/* Private declarations for DCT subsystem */</span></span>
+<a name="line41">041: </a>
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> DCT_FLOAT_SUPPORTED
+<a name="line43">043: </a>
+<a name="line44">044: </a>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900"> * This module is specialized to the case DCTSIZE = 8.</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line48">048: </a>
+<a name="line49">049: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> DCTSIZE <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">8</span>
+<a name="line50">050: </a>  Sorry<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">this</span></span> code only copes with <span style="color: #993399">8</span>x8 DCTs<span style="color: #990000">.</span> <span style="font-style: italic"><span style="color: #9A1900">/* deliberate syntax err */</span></span>
+<a name="line51">051: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line52">052: </a>
+<a name="line53">053: </a>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * Perform the forward DCT on one block of samples.</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line57">057: </a>
+<a name="line58">058: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_fdct_float</span></span> <span style="color: #990000">(</span>FAST_FLOAT <span style="color: #990000">*</span> data<span style="color: #990000">)</span>
+<a name="line60">060: </a><span style="color: #FF0000">{</span>
+<a name="line61">061: </a>  FAST_FLOAT tmp0<span style="color: #990000">,</span> tmp1<span style="color: #990000">,</span> tmp2<span style="color: #990000">,</span> tmp3<span style="color: #990000">,</span> tmp4<span style="color: #990000">,</span> tmp5<span style="color: #990000">,</span> tmp6<span style="color: #990000">,</span> tmp7<span style="color: #990000">;</span>
+<a name="line62">062: </a>  FAST_FLOAT tmp10<span style="color: #990000">,</span> tmp11<span style="color: #990000">,</span> tmp12<span style="color: #990000">,</span> tmp13<span style="color: #990000">;</span>
+<a name="line63">063: </a>  FAST_FLOAT z1<span style="color: #990000">,</span> z2<span style="color: #990000">,</span> z3<span style="color: #990000">,</span> z4<span style="color: #990000">,</span> z5<span style="color: #990000">,</span> z11<span style="color: #990000">,</span> z13<span style="color: #990000">;</span>
+<a name="line64">064: </a>  FAST_FLOAT <span style="color: #990000">*</span>dataptr<span style="color: #990000">;</span>
+<a name="line65">065: </a>  <span style="color: #009900">int</span> ctr<span style="color: #990000">;</span>
+<a name="line66">066: </a>
+<a name="line67">067: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Pass 1: process rows. */</span></span>
+<a name="line68">068: </a>
+<a name="line69">069: </a>  dataptr <span style="color: #990000">=</span> data<span style="color: #990000">;</span>
+<a name="line70">070: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ctr <span style="color: #990000">=</span> DCTSIZE<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">;</span> ctr <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ctr<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line71">071: </a>    tmp0 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">7</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line72">072: </a>    tmp7 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">7</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line73">073: </a>    tmp1 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">6</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line74">074: </a>    tmp6 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">6</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line75">075: </a>    tmp2 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">5</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line76">076: </a>    tmp5 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">5</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line77">077: </a>    tmp3 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">4</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line78">078: </a>    tmp4 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span><span style="color: #993399">4</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line79">079: </a>    
+<a name="line80">080: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Even part */</span></span>
+<a name="line81">081: </a>    
+<a name="line82">082: </a>    tmp10 <span style="color: #990000">=</span> tmp0 <span style="color: #990000">+</span> tmp3<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* phase 2 */</span></span>
+<a name="line83">083: </a>    tmp13 <span style="color: #990000">=</span> tmp0 <span style="color: #990000">-</span> tmp3<span style="color: #990000">;</span>
+<a name="line84">084: </a>    tmp11 <span style="color: #990000">=</span> tmp1 <span style="color: #990000">+</span> tmp2<span style="color: #990000">;</span>
+<a name="line85">085: </a>    tmp12 <span style="color: #990000">=</span> tmp1 <span style="color: #990000">-</span> tmp2<span style="color: #990000">;</span>
+<a name="line86">086: </a>    
+<a name="line87">087: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp10 <span style="color: #990000">+</span> tmp11<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* phase 3 */</span></span>
+<a name="line88">088: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">4</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp10 <span style="color: #990000">-</span> tmp11<span style="color: #990000">;</span>
+<a name="line89">089: </a>    
+<a name="line90">090: </a>    z1 <span style="color: #990000">=</span> <span style="color: #990000">(</span>tmp12 <span style="color: #990000">+</span> tmp13<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.707106781</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c4 */</span></span>
+<a name="line91">091: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp13 <span style="color: #990000">+</span> z1<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* phase 5 */</span></span>
+<a name="line92">092: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">6</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp13 <span style="color: #990000">-</span> z1<span style="color: #990000">;</span>
+<a name="line93">093: </a>    
+<a name="line94">094: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Odd part */</span></span>
+<a name="line95">095: </a>
+<a name="line96">096: </a>    tmp10 <span style="color: #990000">=</span> tmp4 <span style="color: #990000">+</span> tmp5<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* phase 2 */</span></span>
+<a name="line97">097: </a>    tmp11 <span style="color: #990000">=</span> tmp5 <span style="color: #990000">+</span> tmp6<span style="color: #990000">;</span>
+<a name="line98">098: </a>    tmp12 <span style="color: #990000">=</span> tmp6 <span style="color: #990000">+</span> tmp7<span style="color: #990000">;</span>
+<a name="line99">099: </a>
+<a name="line100">100: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* The rotator is modified from fig 4-8 to avoid extra negations. */</span></span>
+<a name="line101">101: </a>    z5 <span style="color: #990000">=</span> <span style="color: #990000">(</span>tmp10 <span style="color: #990000">-</span> tmp12<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.382683433</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c6 */</span></span>
+<a name="line102">102: </a>    z2 <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.541196100</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> tmp10 <span style="color: #990000">+</span> z5<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c2-c6 */</span></span>
+<a name="line103">103: </a>    z4 <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">1.306562965</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> tmp12 <span style="color: #990000">+</span> z5<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c2+c6 */</span></span>
+<a name="line104">104: </a>    z3 <span style="color: #990000">=</span> tmp11 <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.707106781</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c4 */</span></span>
+<a name="line105">105: </a>
+<a name="line106">106: </a>    z11 <span style="color: #990000">=</span> tmp7 <span style="color: #990000">+</span> z3<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* phase 5 */</span></span>
+<a name="line107">107: </a>    z13 <span style="color: #990000">=</span> tmp7 <span style="color: #990000">-</span> z3<span style="color: #990000">;</span>
+<a name="line108">108: </a>
+<a name="line109">109: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">5</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z13 <span style="color: #990000">+</span> z2<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* phase 6 */</span></span>
+<a name="line110">110: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z13 <span style="color: #990000">-</span> z2<span style="color: #990000">;</span>
+<a name="line111">111: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z11 <span style="color: #990000">+</span> z4<span style="color: #990000">;</span>
+<a name="line112">112: </a>    dataptr<span style="color: #990000">[</span><span style="color: #993399">7</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z11 <span style="color: #990000">-</span> z4<span style="color: #990000">;</span>
+<a name="line113">113: </a>
+<a name="line114">114: </a>    dataptr <span style="color: #990000">+</span><span style="color: #990000">=</span> DCTSIZE<span style="color: #990000">;</span>         <span style="font-style: italic"><span style="color: #9A1900">/* advance pointer to next row */</span></span>
+<a name="line115">115: </a>  <span style="color: #FF0000">}</span>
+<a name="line116">116: </a>
+<a name="line117">117: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Pass 2: process columns. */</span></span>
+<a name="line118">118: </a>
+<a name="line119">119: </a>  dataptr <span style="color: #990000">=</span> data<span style="color: #990000">;</span>
+<a name="line120">120: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ctr <span style="color: #990000">=</span> DCTSIZE<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">;</span> ctr <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ctr<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line121">121: </a>    tmp0 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">7</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line122">122: </a>    tmp7 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">7</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line123">123: </a>    tmp1 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">6</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line124">124: </a>    tmp6 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">6</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line125">125: </a>    tmp2 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">5</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line126">126: </a>    tmp5 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">5</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line127">127: </a>    tmp3 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">4</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line128">128: </a>    tmp4 <span style="color: #990000">=</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">-</span> dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">4</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line129">129: </a>    
+<a name="line130">130: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Even part */</span></span>
+<a name="line131">131: </a>    
+<a name="line132">132: </a>    tmp10 <span style="color: #990000">=</span> tmp0 <span style="color: #990000">+</span> tmp3<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* phase 2 */</span></span>
+<a name="line133">133: </a>    tmp13 <span style="color: #990000">=</span> tmp0 <span style="color: #990000">-</span> tmp3<span style="color: #990000">;</span>
+<a name="line134">134: </a>    tmp11 <span style="color: #990000">=</span> tmp1 <span style="color: #990000">+</span> tmp2<span style="color: #990000">;</span>
+<a name="line135">135: </a>    tmp12 <span style="color: #990000">=</span> tmp1 <span style="color: #990000">-</span> tmp2<span style="color: #990000">;</span>
+<a name="line136">136: </a>    
+<a name="line137">137: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp10 <span style="color: #990000">+</span> tmp11<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* phase 3 */</span></span>
+<a name="line138">138: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">4</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp10 <span style="color: #990000">-</span> tmp11<span style="color: #990000">;</span>
+<a name="line139">139: </a>    
+<a name="line140">140: </a>    z1 <span style="color: #990000">=</span> <span style="color: #990000">(</span>tmp12 <span style="color: #990000">+</span> tmp13<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.707106781</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c4 */</span></span>
+<a name="line141">141: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">2</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp13 <span style="color: #990000">+</span> z1<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* phase 5 */</span></span>
+<a name="line142">142: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">6</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> tmp13 <span style="color: #990000">-</span> z1<span style="color: #990000">;</span>
+<a name="line143">143: </a>    
+<a name="line144">144: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Odd part */</span></span>
+<a name="line145">145: </a>
+<a name="line146">146: </a>    tmp10 <span style="color: #990000">=</span> tmp4 <span style="color: #990000">+</span> tmp5<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* phase 2 */</span></span>
+<a name="line147">147: </a>    tmp11 <span style="color: #990000">=</span> tmp5 <span style="color: #990000">+</span> tmp6<span style="color: #990000">;</span>
+<a name="line148">148: </a>    tmp12 <span style="color: #990000">=</span> tmp6 <span style="color: #990000">+</span> tmp7<span style="color: #990000">;</span>
+<a name="line149">149: </a>
+<a name="line150">150: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* The rotator is modified from fig 4-8 to avoid extra negations. */</span></span>
+<a name="line151">151: </a>    z5 <span style="color: #990000">=</span> <span style="color: #990000">(</span>tmp10 <span style="color: #990000">-</span> tmp12<span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.382683433</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c6 */</span></span>
+<a name="line152">152: </a>    z2 <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.541196100</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> tmp10 <span style="color: #990000">+</span> z5<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c2-c6 */</span></span>
+<a name="line153">153: </a>    z4 <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">1.306562965</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> tmp12 <span style="color: #990000">+</span> z5<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c2+c6 */</span></span>
+<a name="line154">154: </a>    z3 <span style="color: #990000">=</span> tmp11 <span style="color: #990000">*</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>FAST_FLOAT<span style="color: #990000">)</span> <span style="color: #993399">0.707106781</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* c4 */</span></span>
+<a name="line155">155: </a>
+<a name="line156">156: </a>    z11 <span style="color: #990000">=</span> tmp7 <span style="color: #990000">+</span> z3<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* phase 5 */</span></span>
+<a name="line157">157: </a>    z13 <span style="color: #990000">=</span> tmp7 <span style="color: #990000">-</span> z3<span style="color: #990000">;</span>
+<a name="line158">158: </a>
+<a name="line159">159: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">5</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z13 <span style="color: #990000">+</span> z2<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* phase 6 */</span></span>
+<a name="line160">160: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">3</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z13 <span style="color: #990000">-</span> z2<span style="color: #990000">;</span>
+<a name="line161">161: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z11 <span style="color: #990000">+</span> z4<span style="color: #990000">;</span>
+<a name="line162">162: </a>    dataptr<span style="color: #990000">[</span>DCTSIZE<span style="color: #990000">*</span><span style="color: #993399">7</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> z11 <span style="color: #990000">-</span> z4<span style="color: #990000">;</span>
+<a name="line163">163: </a>
+<a name="line164">164: </a>    dataptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* advance pointer to next column */</span></span>
+<a name="line165">165: </a>  <span style="color: #FF0000">}</span>
+<a name="line166">166: </a><span style="color: #FF0000">}</span>
+<a name="line167">167: </a>
+<a name="line168">168: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* DCT_FLOAT_SUPPORTED */</span></span>
+</tt>
+</pre>
+</body>
+</html>

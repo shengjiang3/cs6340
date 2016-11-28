@@ -1,0 +1,382 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jmorecfg.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jmorecfg.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains additional configuration options that customize the</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG software for special applications or support machine-dependent</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * optimizations.  Most users will not need to touch this file.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line12">012: </a>
+<a name="line13">013: </a>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * Define BITS_IN_JSAMPLE as either</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> *   8   for 8-bit sample values (the usual setting)</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> *   12  for 12-bit sample values</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * Only 8 and 12 are legal data precisions for lossy JPEG according to the</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG standard, and the IJG code does not support anything else!</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> * We do not support run-time selection of data precision, sorry.</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line22">022: </a>
+<a name="line23">023: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> BITS_IN_JSAMPLE  <span style="color: #993399">8</span>      <span style="font-style: italic"><span style="color: #9A1900">/* use 8 or 12 */</span></span>
+<a name="line24">024: </a>
+<a name="line25">025: </a>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> * Maximum number of components (color channels) allowed in JPEG image.</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * To meet the letter of the JPEG spec, set this to 255.  However, darn</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * few applications need more than 4 channels (maybe 5 for CMYK + alpha</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * mask).  We recommend 10 as a reasonable compromise; use 4 if you are</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * really short on memory.  (Each allowed component costs a hundred or so</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * bytes of storage, whether actually used in an image or not.)</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAX_COMPONENTS  <span style="color: #993399">10</span>      <span style="font-style: italic"><span style="color: #9A1900">/* maximum number of image components */</span></span>
+<a name="line36">036: </a>
+<a name="line37">037: </a>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900"> * Basic data types.</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * You may need to change these if you have a machine with unusual data</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * type sizes; for example, "char" not 8 bits, "short" not 16 bits,</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> * or "long" not 32 bits.  We don't care whether "int" is 16 or 32 bits,</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900"> * but it had better be at least 16.</span></span>
+<a name="line44">044: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line45">045: </a>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900">/* Representation of a single sample (pixel element value).</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900"> * We frequently allocate large arrays of these, so it's important to keep</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> * them small.  But if you have memory to burn and access to char or short</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * arrays is very slow on your hardware, you might want to change these.</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line51">051: </a>
+<a name="line52">052: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> BITS_IN_JSAMPLE <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">8</span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900">/* JSAMPLE should be the smallest type that will hold the values 0..255.</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> * You can use a signed char by having GETJSAMPLE mask it with 0xFF.</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line56">056: </a>
+<a name="line57">057: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_CHAR
+<a name="line58">058: </a>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">char</span> JSAMPLE<span style="color: #990000">;</span>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJSAMPLE</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>value<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line61">061: </a>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line63">063: </a>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">char</span> JSAMPLE<span style="color: #990000">;</span>
+<a name="line65">065: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> CHAR_IS_UNSIGNED
+<a name="line66">066: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJSAMPLE</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>value<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line67">067: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line68">068: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJSAMPLE</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>value<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span>
+<a name="line69">069: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* CHAR_IS_UNSIGNED */</span></span>
+<a name="line70">070: </a>
+<a name="line71">071: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line72">072: </a>
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAXJSAMPLE      <span style="color: #993399">255</span>
+<a name="line74">074: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CENTERJSAMPLE   <span style="color: #993399">128</span>
+<a name="line75">075: </a>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* BITS_IN_JSAMPLE == 8 */</span></span>
+<a name="line77">077: </a>
+<a name="line78">078: </a>
+<a name="line79">079: </a><span style="font-weight: bold"><span style="color: #000080">#if</span></span> BITS_IN_JSAMPLE <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">12</span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900">/* JSAMPLE should be the smallest type that will hold the values 0..4095.</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> * On nearly all machines "short" will do nicely.</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line83">083: </a>
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">short</span> JSAMPLE<span style="color: #990000">;</span>
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJSAMPLE</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>value<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line86">086: </a>
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAXJSAMPLE      <span style="color: #993399">4095</span>
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CENTERJSAMPLE   <span style="color: #993399">2048</span>
+<a name="line89">089: </a>
+<a name="line90">090: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* BITS_IN_JSAMPLE == 12 */</span></span>
+<a name="line91">091: </a>
+<a name="line92">092: </a>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900">/* Representation of a DCT frequency coefficient.</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> * This should be a signed value of at least 16 bits; "short" is usually OK.</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * Again, we allocate large arrays of these, but you can change to int</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * if you have memory to burn and "short" is really slow.</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line98">098: </a>
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">short</span> JCOEF<span style="color: #990000">;</span>
+<a name="line100">100: </a>
+<a name="line101">101: </a>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900">/* Compressed datastreams are represented as arrays of JOCTET.</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> * These must be EXACTLY 8 bits wide, at least once they are written to</span></span>
+<a name="line104">104: </a><span style="font-style: italic"><span style="color: #9A1900"> * external storage.  Note that when using the stdio data source/destination</span></span>
+<a name="line105">105: </a><span style="font-style: italic"><span style="color: #9A1900"> * managers, this is also the data type passed to fread/fwrite.</span></span>
+<a name="line106">106: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line107">107: </a>
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_CHAR
+<a name="line109">109: </a>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">char</span> JOCTET<span style="color: #990000">;</span>
+<a name="line111">111: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJOCTET</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span>value<span style="color: #990000">)</span>
+<a name="line112">112: </a>
+<a name="line113">113: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line114">114: </a>
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">char</span> JOCTET<span style="color: #990000">;</span>
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> CHAR_IS_UNSIGNED
+<a name="line117">117: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJOCTET</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span>value<span style="color: #990000">)</span>
+<a name="line118">118: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GETJOCTET</span></span><span style="color: #990000">(</span>value<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>value<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span>
+<a name="line120">120: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* CHAR_IS_UNSIGNED */</span></span>
+<a name="line121">121: </a>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line123">123: </a>
+<a name="line124">124: </a>
+<a name="line125">125: </a><span style="font-style: italic"><span style="color: #9A1900">/* These typedefs are used for various table entries and so forth.</span></span>
+<a name="line126">126: </a><span style="font-style: italic"><span style="color: #9A1900"> * They must be at least as wide as specified; but making them too big</span></span>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900"> * won't cost a huge amount of memory, so we don't provide special</span></span>
+<a name="line128">128: </a><span style="font-style: italic"><span style="color: #9A1900"> * extraction code like we did for JSAMPLE.  (In other words, these</span></span>
+<a name="line129">129: </a><span style="font-style: italic"><span style="color: #9A1900"> * typedefs live at a different point on the speed/space tradeoff curve.)</span></span>
+<a name="line130">130: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line131">131: </a>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900">/* UINT8 must hold at least the values 0..255. */</span></span>
+<a name="line133">133: </a>
+<a name="line134">134: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_CHAR
+<a name="line135">135: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">char</span> UINT8<span style="color: #990000">;</span>
+<a name="line136">136: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line137">137: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> CHAR_IS_UNSIGNED
+<a name="line138">138: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">char</span> UINT8<span style="color: #990000">;</span>
+<a name="line139">139: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not CHAR_IS_UNSIGNED */</span></span>
+<a name="line140">140: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">short</span> UINT8<span style="color: #990000">;</span>
+<a name="line141">141: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* CHAR_IS_UNSIGNED */</span></span>
+<a name="line142">142: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* HAVE_UNSIGNED_CHAR */</span></span>
+<a name="line143">143: </a>
+<a name="line144">144: </a><span style="font-style: italic"><span style="color: #9A1900">/* UINT16 must hold at least the values 0..65535. */</span></span>
+<a name="line145">145: </a>
+<a name="line146">146: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_UNSIGNED_SHORT
+<a name="line147">147: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> UINT16<span style="color: #990000">;</span>
+<a name="line148">148: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not HAVE_UNSIGNED_SHORT */</span></span>
+<a name="line149">149: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> UINT16<span style="color: #990000">;</span>
+<a name="line150">150: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* HAVE_UNSIGNED_SHORT */</span></span>
+<a name="line151">151: </a>
+<a name="line152">152: </a><span style="font-style: italic"><span style="color: #9A1900">/* INT16 must hold at least the values -32768..32767. */</span></span>
+<a name="line153">153: </a>
+<a name="line154">154: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> XMD_H                   <span style="font-style: italic"><span style="color: #9A1900">/* X11/xmd.h correctly defines INT16 */</span></span>
+<a name="line155">155: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">short</span> INT16<span style="color: #990000">;</span>
+<a name="line156">156: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line157">157: </a>
+<a name="line158">158: </a><span style="font-style: italic"><span style="color: #9A1900">/* INT32 must hold at least signed 32-bit values. */</span></span>
+<a name="line159">159: </a>
+<a name="line160">160: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> XMD_H                   <span style="font-style: italic"><span style="color: #9A1900">/* X11/xmd.h correctly defines INT32 */</span></span>
+<a name="line161">161: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">long</span> INT32<span style="color: #990000">;</span>
+<a name="line162">162: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line163">163: </a>
+<a name="line164">164: </a><span style="font-style: italic"><span style="color: #9A1900">/* Datatype used for image dimensions.  The JPEG standard only supports</span></span>
+<a name="line165">165: </a><span style="font-style: italic"><span style="color: #9A1900"> * images up to 64K*64K due to 16-bit fields in SOF markers.  Therefore</span></span>
+<a name="line166">166: </a><span style="font-style: italic"><span style="color: #9A1900"> * "unsigned int" is sufficient on all machines.  However, if you need to</span></span>
+<a name="line167">167: </a><span style="font-style: italic"><span style="color: #9A1900"> * handle larger images and you don't mind deviating from the spec, you</span></span>
+<a name="line168">168: </a><span style="font-style: italic"><span style="color: #9A1900"> * can change this datatype.</span></span>
+<a name="line169">169: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line170">170: </a>
+<a name="line171">171: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> JDIMENSION<span style="color: #990000">;</span>
+<a name="line172">172: </a>
+<a name="line173">173: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_MAX_DIMENSION  <span style="color: #993399">65500</span>L  <span style="font-style: italic"><span style="color: #9A1900">/* a tad under 64K to prevent overflows */</span></span>
+<a name="line174">174: </a>
+<a name="line175">175: </a>
+<a name="line176">176: </a><span style="font-style: italic"><span style="color: #9A1900">/* These macros are used in all function definitions and extern declarations.</span></span>
+<a name="line177">177: </a><span style="font-style: italic"><span style="color: #9A1900"> * You could modify them if you need to change function linkage conventions;</span></span>
+<a name="line178">178: </a><span style="font-style: italic"><span style="color: #9A1900"> * in particular, you'll need to do that to make the library a Windows DLL.</span></span>
+<a name="line179">179: </a><span style="font-style: italic"><span style="color: #9A1900"> * Another application is to make all functions global for use with debuggers</span></span>
+<a name="line180">180: </a><span style="font-style: italic"><span style="color: #9A1900"> * or code profilers that require it.</span></span>
+<a name="line181">181: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line182">182: </a>
+<a name="line183">183: </a><span style="font-style: italic"><span style="color: #9A1900">/* a function called through method pointers: */</span></span>
+<a name="line184">184: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>type<span style="color: #990000">)</span>         <span style="font-weight: bold"><span style="color: #0000FF">static</span></span> type
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900">/* a function used only in its module: */</span></span>
+<a name="line186">186: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span>type<span style="color: #990000">)</span>             <span style="font-weight: bold"><span style="color: #0000FF">static</span></span> type
+<a name="line187">187: </a><span style="font-style: italic"><span style="color: #9A1900">/* a function referenced thru EXTERNs: */</span></span>
+<a name="line188">188: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span>type<span style="color: #990000">)</span>            type
+<a name="line189">189: </a><span style="font-style: italic"><span style="color: #9A1900">/* a reference to a GLOBAL function: */</span></span>
+<a name="line190">190: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span>type<span style="color: #990000">)</span>            <span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> type
+<a name="line191">191: </a>
+<a name="line192">192: </a>
+<a name="line193">193: </a><span style="font-style: italic"><span style="color: #9A1900">/* This macro is used to declare a "method", that is, a function pointer.</span></span>
+<a name="line194">194: </a><span style="font-style: italic"><span style="color: #9A1900"> * We want to supply prototype parameters if the compiler can cope.</span></span>
+<a name="line195">195: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that the arglist parameter must be parenthesized!</span></span>
+<a name="line196">196: </a><span style="font-style: italic"><span style="color: #9A1900"> * Again, you can customize this if you need special linkage keywords.</span></span>
+<a name="line197">197: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line198">198: </a>
+<a name="line199">199: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line200">200: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span>type<span style="color: #990000">,</span>methodname<span style="color: #990000">,</span>arglist<span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">type</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>methodname<span style="color: #990000">)</span> arglist
+<a name="line201">201: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line202">202: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span>type<span style="color: #990000">,</span>methodname<span style="color: #990000">,</span>arglist<span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">type</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>methodname<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">)</span>
+<a name="line203">203: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line204">204: </a>
+<a name="line205">205: </a>
+<a name="line206">206: </a><span style="font-style: italic"><span style="color: #9A1900">/* Here is the pseudo-keyword for declaring pointers that must be "far"</span></span>
+<a name="line207">207: </a><span style="font-style: italic"><span style="color: #9A1900"> * on 80x86 machines.  Most of the specialized coding for 80x86 is handled</span></span>
+<a name="line208">208: </a><span style="font-style: italic"><span style="color: #9A1900"> * by just saying "FAR *" where such a pointer is needed.  In a few places</span></span>
+<a name="line209">209: </a><span style="font-style: italic"><span style="color: #9A1900"> * explicit coding is needed; see uses of the NEED_FAR_POINTERS symbol.</span></span>
+<a name="line210">210: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line211">211: </a>
+<a name="line212">212: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_FAR_POINTERS
+<a name="line213">213: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> FAR  far
+<a name="line214">214: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line215">215: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> FAR
+<a name="line216">216: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line217">217: </a>
+<a name="line218">218: </a>
+<a name="line219">219: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line220">220: </a><span style="font-style: italic"><span style="color: #9A1900"> * On a few systems, type boolean and/or its values FALSE, TRUE may appear</span></span>
+<a name="line221">221: </a><span style="font-style: italic"><span style="color: #9A1900"> * in standard header files.  Or you may have conflicts with application-</span></span>
+<a name="line222">222: </a><span style="font-style: italic"><span style="color: #9A1900"> * specific header files that you want to include together with these files.</span></span>
+<a name="line223">223: </a><span style="font-style: italic"><span style="color: #9A1900"> * Defining HAVE_BOOLEAN before including jpeglib.h should make it work.</span></span>
+<a name="line224">224: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line225">225: </a>
+<a name="line226">226: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> HAVE_BOOLEAN
+<a name="line227">227: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">int</span> boolean<span style="color: #990000">;</span>
+<a name="line228">228: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line229">229: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> FALSE                   <span style="font-style: italic"><span style="color: #9A1900">/* in case these macros already exist */</span></span>
+<a name="line230">230: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> FALSE   <span style="color: #993399">0</span>               <span style="font-style: italic"><span style="color: #9A1900">/* values of boolean */</span></span>
+<a name="line231">231: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line232">232: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> TRUE
+<a name="line233">233: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> TRUE    <span style="color: #993399">1</span>
+<a name="line234">234: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line235">235: </a>
+<a name="line236">236: </a>
+<a name="line237">237: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line238">238: </a><span style="font-style: italic"><span style="color: #9A1900"> * The remaining options affect code selection within the JPEG library,</span></span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900"> * but they don't need to be visible to most applications using the library.</span></span>
+<a name="line240">240: </a><span style="font-style: italic"><span style="color: #9A1900"> * To minimize application namespace pollution, the symbols won't be</span></span>
+<a name="line241">241: </a><span style="font-style: italic"><span style="color: #9A1900"> * defined unless JPEG_INTERNALS or JPEG_INTERNAL_OPTIONS has been defined.</span></span>
+<a name="line242">242: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line243">243: </a>
+<a name="line244">244: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> JPEG_INTERNALS
+<a name="line245">245: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNAL_OPTIONS
+<a name="line246">246: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line247">247: </a>
+<a name="line248">248: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> JPEG_INTERNAL_OPTIONS
+<a name="line249">249: </a>
+<a name="line250">250: </a>
+<a name="line251">251: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line252">252: </a><span style="font-style: italic"><span style="color: #9A1900"> * These defines indicate whether to include various optional functions.</span></span>
+<a name="line253">253: </a><span style="font-style: italic"><span style="color: #9A1900"> * Undefining some of these symbols will produce a smaller but less capable</span></span>
+<a name="line254">254: </a><span style="font-style: italic"><span style="color: #9A1900"> * library.  Note that you can leave certain source files out of the</span></span>
+<a name="line255">255: </a><span style="font-style: italic"><span style="color: #9A1900"> * compilation/linking process if you've #undef'd the corresponding symbols.</span></span>
+<a name="line256">256: </a><span style="font-style: italic"><span style="color: #9A1900"> * (You may HAVE to do that if your compiler doesn't like null source files.)</span></span>
+<a name="line257">257: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line258">258: </a>
+<a name="line259">259: </a><span style="font-style: italic"><span style="color: #9A1900">/* Arithmetic coding is unsupported for legal reasons.  Complaints to IBM. */</span></span>
+<a name="line260">260: </a>
+<a name="line261">261: </a><span style="font-style: italic"><span style="color: #9A1900">/* Capability options common to encoder and decoder: */</span></span>
+<a name="line262">262: </a>
+<a name="line263">263: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> DCT_ISLOW_SUPPORTED     <span style="font-style: italic"><span style="color: #9A1900">/* slow but accurate integer algorithm */</span></span>
+<a name="line264">264: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> DCT_IFAST_SUPPORTED     <span style="font-style: italic"><span style="color: #9A1900">/* faster, less accurate integer method */</span></span>
+<a name="line265">265: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> DCT_FLOAT_SUPPORTED     <span style="font-style: italic"><span style="color: #9A1900">/* floating-point: accurate, fast on fast HW */</span></span>
+<a name="line266">266: </a>
+<a name="line267">267: </a><span style="font-style: italic"><span style="color: #9A1900">/* Encoder capability options: */</span></span>
+<a name="line268">268: </a>
+<a name="line269">269: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span>  C_ARITH_CODING_SUPPORTED    <span style="font-style: italic"><span style="color: #9A1900">/* Arithmetic coding back end? */</span></span>
+<a name="line270">270: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> C_MULTISCAN_FILES_SUPPORTED <span style="font-style: italic"><span style="color: #9A1900">/* Multiple-scan JPEG files? */</span></span>
+<a name="line271">271: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> C_PROGRESSIVE_SUPPORTED     <span style="font-style: italic"><span style="color: #9A1900">/* Progressive JPEG? (Requires MULTISCAN)*/</span></span>
+<a name="line272">272: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> ENTROPY_OPT_SUPPORTED       <span style="font-style: italic"><span style="color: #9A1900">/* Optimization of entropy coding parms? */</span></span>
+<a name="line273">273: </a><span style="font-style: italic"><span style="color: #9A1900">/* Note: if you selected 12-bit data precision, it is dangerous to turn off</span></span>
+<a name="line274">274: </a><span style="font-style: italic"><span style="color: #9A1900"> * ENTROPY_OPT_SUPPORTED.  The standard Huffman tables are only good for 8-bit</span></span>
+<a name="line275">275: </a><span style="font-style: italic"><span style="color: #9A1900"> * precision, so jchuff.c normally uses entropy optimization to compute</span></span>
+<a name="line276">276: </a><span style="font-style: italic"><span style="color: #9A1900"> * usable tables for higher precision.  If you don't want to do optimization,</span></span>
+<a name="line277">277: </a><span style="font-style: italic"><span style="color: #9A1900"> * you'll have to supply different default Huffman tables.</span></span>
+<a name="line278">278: </a><span style="font-style: italic"><span style="color: #9A1900"> * The exact same statements apply for progressive JPEG: the default tables</span></span>
+<a name="line279">279: </a><span style="font-style: italic"><span style="color: #9A1900"> * don't work for progressive mode.  (This may get fixed, however.)</span></span>
+<a name="line280">280: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line281">281: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> INPUT_SMOOTHING_SUPPORTED   <span style="font-style: italic"><span style="color: #9A1900">/* Input image smoothing option? */</span></span>
+<a name="line282">282: </a>
+<a name="line283">283: </a><span style="font-style: italic"><span style="color: #9A1900">/* Decoder capability options: */</span></span>
+<a name="line284">284: </a>
+<a name="line285">285: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span>  D_ARITH_CODING_SUPPORTED    <span style="font-style: italic"><span style="color: #9A1900">/* Arithmetic coding back end? */</span></span>
+<a name="line286">286: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> D_MULTISCAN_FILES_SUPPORTED <span style="font-style: italic"><span style="color: #9A1900">/* Multiple-scan JPEG files? */</span></span>
+<a name="line287">287: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> D_PROGRESSIVE_SUPPORTED     <span style="font-style: italic"><span style="color: #9A1900">/* Progressive JPEG? (Requires MULTISCAN)*/</span></span>
+<a name="line288">288: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> SAVE_MARKERS_SUPPORTED      <span style="font-style: italic"><span style="color: #9A1900">/* jpeg_save_markers() needed? */</span></span>
+<a name="line289">289: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> BLOCK_SMOOTHING_SUPPORTED   <span style="font-style: italic"><span style="color: #9A1900">/* Block smoothing? (Progressive only) */</span></span>
+<a name="line290">290: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> IDCT_SCALING_SUPPORTED      <span style="font-style: italic"><span style="color: #9A1900">/* Output rescaling via IDCT? */</span></span>
+<a name="line291">291: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span>  UPSAMPLE_SCALING_SUPPORTED  <span style="font-style: italic"><span style="color: #9A1900">/* Output rescaling at upsample stage? */</span></span>
+<a name="line292">292: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> UPSAMPLE_MERGING_SUPPORTED  <span style="font-style: italic"><span style="color: #9A1900">/* Fast path for sloppy upsampling? */</span></span>
+<a name="line293">293: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> QUANT_1PASS_SUPPORTED       <span style="font-style: italic"><span style="color: #9A1900">/* 1-pass color quantization? */</span></span>
+<a name="line294">294: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> QUANT_2PASS_SUPPORTED       <span style="font-style: italic"><span style="color: #9A1900">/* 2-pass color quantization? */</span></span>
+<a name="line295">295: </a>
+<a name="line296">296: </a><span style="font-style: italic"><span style="color: #9A1900">/* more capability options later, no doubt */</span></span>
+<a name="line297">297: </a>
+<a name="line298">298: </a>
+<a name="line299">299: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line300">300: </a><span style="font-style: italic"><span style="color: #9A1900"> * Ordering of RGB data in scanlines passed to or from the application.</span></span>
+<a name="line301">301: </a><span style="font-style: italic"><span style="color: #9A1900"> * If your application wants to deal with data in the order B,G,R, just</span></span>
+<a name="line302">302: </a><span style="font-style: italic"><span style="color: #9A1900"> * change these macros.  You can also deal with formats such as R,G,B,X</span></span>
+<a name="line303">303: </a><span style="font-style: italic"><span style="color: #9A1900"> * (one extra byte per pixel) by changing RGB_PIXELSIZE.  Note that changing</span></span>
+<a name="line304">304: </a><span style="font-style: italic"><span style="color: #9A1900"> * the offsets will also change the order in which colormap data is organized.</span></span>
+<a name="line305">305: </a><span style="font-style: italic"><span style="color: #9A1900"> * RESTRICTIONS:</span></span>
+<a name="line306">306: </a><span style="font-style: italic"><span style="color: #9A1900"> * 1. The sample applications cjpeg,djpeg do NOT support modified RGB formats.</span></span>
+<a name="line307">307: </a><span style="font-style: italic"><span style="color: #9A1900"> * 2. These macros only affect RGB&lt;=&gt;YCbCr color conversion, so they are not</span></span>
+<a name="line308">308: </a><span style="font-style: italic"><span style="color: #9A1900"> *    useful if you are using JPEG color spaces other than YCbCr or grayscale.</span></span>
+<a name="line309">309: </a><span style="font-style: italic"><span style="color: #9A1900"> * 3. The color quantizer modules will not behave desirably if RGB_PIXELSIZE</span></span>
+<a name="line310">310: </a><span style="font-style: italic"><span style="color: #9A1900"> *    is not 3 (they don't understand about dummy color components!).  So you</span></span>
+<a name="line311">311: </a><span style="font-style: italic"><span style="color: #9A1900"> *    can't use color quantization if you change that value.</span></span>
+<a name="line312">312: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line313">313: </a>
+<a name="line314">314: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> RGB_RED         <span style="color: #993399">0</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Offset of Red in an RGB scanline element */</span></span>
+<a name="line315">315: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> RGB_GREEN       <span style="color: #993399">1</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Offset of Green */</span></span>
+<a name="line316">316: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> RGB_BLUE        <span style="color: #993399">2</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Offset of Blue */</span></span>
+<a name="line317">317: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> RGB_PIXELSIZE   <span style="color: #993399">3</span>       <span style="font-style: italic"><span style="color: #9A1900">/* JSAMPLEs per RGB scanline element */</span></span>
+<a name="line318">318: </a>
+<a name="line319">319: </a>
+<a name="line320">320: </a><span style="font-style: italic"><span style="color: #9A1900">/* Definitions for speed-related optimizations. */</span></span>
+<a name="line321">321: </a>
+<a name="line322">322: </a>
+<a name="line323">323: </a><span style="font-style: italic"><span style="color: #9A1900">/* If your compiler supports inline functions, define INLINE</span></span>
+<a name="line324">324: </a><span style="font-style: italic"><span style="color: #9A1900"> * as the inline keyword; otherwise define it as empty.</span></span>
+<a name="line325">325: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line326">326: </a>
+<a name="line327">327: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> INLINE
+<a name="line328">328: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> __GNUC__                 <span style="font-style: italic"><span style="color: #9A1900">/* for instance, GNU C knows about inline */</span></span>
+<a name="line329">329: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> INLINE __inline__
+<a name="line330">330: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line331">331: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> INLINE
+<a name="line332">332: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> INLINE                  <span style="font-style: italic"><span style="color: #9A1900">/* default is to define it as empty */</span></span>
+<a name="line333">333: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line334">334: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line335">335: </a>
+<a name="line336">336: </a>
+<a name="line337">337: </a><span style="font-style: italic"><span style="color: #9A1900">/* On some machines (notably 68000 series) "int" is 32 bits, but multiplying</span></span>
+<a name="line338">338: </a><span style="font-style: italic"><span style="color: #9A1900"> * two 16-bit shorts is faster than multiplying two ints.  Define MULTIPLIER</span></span>
+<a name="line339">339: </a><span style="font-style: italic"><span style="color: #9A1900"> * as short on such a machine.  MULTIPLIER must be at least 16 bits wide.</span></span>
+<a name="line340">340: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line341">341: </a>
+<a name="line342">342: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> MULTIPLIER
+<a name="line343">343: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MULTIPLIER  <span style="color: #009900">int</span>         <span style="font-style: italic"><span style="color: #9A1900">/* type for fastest integer multiply */</span></span>
+<a name="line344">344: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line345">345: </a>
+<a name="line346">346: </a>
+<a name="line347">347: </a><span style="font-style: italic"><span style="color: #9A1900">/* FAST_FLOAT should be either float or double, whichever is done faster</span></span>
+<a name="line348">348: </a><span style="font-style: italic"><span style="color: #9A1900"> * by your compiler.  (Note that this type is only used in the floating point</span></span>
+<a name="line349">349: </a><span style="font-style: italic"><span style="color: #9A1900"> * DCT routines, so it only matters if you've defined DCT_FLOAT_SUPPORTED.)</span></span>
+<a name="line350">350: </a><span style="font-style: italic"><span style="color: #9A1900"> * Typically, float is faster in ANSI C compilers, while double is faster in</span></span>
+<a name="line351">351: </a><span style="font-style: italic"><span style="color: #9A1900"> * pre-ANSI compilers (because they insist on converting to double anyway).</span></span>
+<a name="line352">352: </a><span style="font-style: italic"><span style="color: #9A1900"> * The code below therefore chooses float if we have ANSI-style prototypes.</span></span>
+<a name="line353">353: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line354">354: </a>
+<a name="line355">355: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> FAST_FLOAT
+<a name="line356">356: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_PROTOTYPES
+<a name="line357">357: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> FAST_FLOAT  <span style="color: #009900">float</span>
+<a name="line358">358: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line359">359: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> FAST_FLOAT  <span style="color: #009900">double</span>
+<a name="line360">360: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line361">361: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line362">362: </a>
+<a name="line363">363: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* JPEG_INTERNAL_OPTIONS */</span></span>
+</tt>
+</pre>
+</body>
+</html>

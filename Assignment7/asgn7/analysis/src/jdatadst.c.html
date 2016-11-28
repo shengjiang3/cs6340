@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jdatadst.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jdatadst.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains compression data destination routines for the case of</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * emitting JPEG data to a file (or any stdio stream).  While these routines</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * are sufficient for most applications, some will want to use a different</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * destination manager.</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * IMPORTANT: we assume that fwrite() will correctly transcribe an array of</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * JOCTETs into 8-bit-wide elements on external storage.  If char is wider</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * than 8 bits on your machine, you may need to do some tweaking.</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line16">016: </a>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900">/* this is not a core library module, so it doesn't define JPEG_INTERNALS */</span></span>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jerror.h"</span>
+<a name="line21">021: </a>
+<a name="line22">022: </a>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900">/* Expanded data destination object for stdio output */</span></span>
+<a name="line24">024: </a>
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line26">026: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_destination_mgr pub<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* public fields */</span></span>
+<a name="line27">027: </a>
+<a name="line28">028: </a>  FILE <span style="color: #990000">*</span> outfile<span style="color: #990000">;</span>               <span style="font-style: italic"><span style="color: #9A1900">/* target stream */</span></span>
+<a name="line29">029: </a>  JOCTET <span style="color: #990000">*</span> buffer<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* start of buffer */</span></span>
+<a name="line30">030: </a><span style="color: #FF0000">}</span> my_destination_mgr<span style="color: #990000">;</span>
+<a name="line31">031: </a>
+<a name="line32">032: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> my_destination_mgr <span style="color: #990000">*</span> my_dest_ptr<span style="color: #990000">;</span>
+<a name="line33">033: </a>
+<a name="line34">034: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> OUTPUT_BUF_SIZE  <span style="color: #993399">4096</span>   <span style="font-style: italic"><span style="color: #9A1900">/* choose an efficiently fwrite'able size */</span></span>
+<a name="line35">035: </a>
+<a name="line36">036: </a>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize destination --- called by jpeg_start_compress</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900"> * before any data is actually written.</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line41">041: </a>
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line43">043: </a><span style="font-weight: bold"><span style="color: #000000">init_destination</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line44">044: </a><span style="color: #FF0000">{</span>
+<a name="line45">045: </a>  my_dest_ptr dest <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_dest_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line46">046: </a>
+<a name="line47">047: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Allocate the output buffer --- it will be released when done with image */</span></span>
+<a name="line48">048: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer <span style="color: #990000">=</span> <span style="color: #990000">(</span>JOCTET <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line49">049: </a>      <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line50">050: </a>                                  OUTPUT_BUF_SIZE <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>JOCTET<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line51">051: </a>
+<a name="line52">052: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>next_output_byte <span style="color: #990000">=</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">;</span>
+<a name="line53">053: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>free_in_buffer <span style="color: #990000">=</span> OUTPUT_BUF_SIZE<span style="color: #990000">;</span>
+<a name="line54">054: </a><span style="color: #FF0000">}</span>
+<a name="line55">055: </a>
+<a name="line56">056: </a>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * Empty the output buffer --- called whenever buffer fills up.</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line60">060: </a><span style="font-style: italic"><span style="color: #9A1900"> * In typical applications, this should write the entire output buffer</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900"> * (ignoring the current state of next_output_byte &amp; free_in_buffer),</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * reset the pointer &amp; count to the start of the buffer, and return TRUE</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> * indicating that the buffer has been dumped.</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * In applications that need to be able to suspend compression due to output</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * overrun, a FALSE return indicates that the buffer cannot be emptied now.</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * In this situation, the compressor will return to its caller (possibly with</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * an indication that it has not accepted all the supplied scanlines).  The</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * application should resume compression after it has made more room in the</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> * output buffer.  Note that there are substantial restrictions on the use of</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * suspension --- see the documentation.</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * When suspending, the compressor will back up to a convenient restart point</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * (typically the start of the current MCU). next_output_byte &amp; free_in_buffer</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> * indicate where the restart point will be if the current call returns FALSE.</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * Data beyond this point will be regenerated after resumption, so do not</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> * write it out when emptying the buffer externally.</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line79">079: </a>
+<a name="line80">080: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line81">081: </a><span style="font-weight: bold"><span style="color: #000000">empty_output_buffer</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line82">082: </a><span style="color: #FF0000">{</span>
+<a name="line83">083: </a>  my_dest_ptr dest <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_dest_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line84">084: </a>
+<a name="line85">085: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">JFWRITE</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>outfile<span style="color: #990000">,</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">,</span> OUTPUT_BUF_SIZE<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span>
+<a name="line86">086: </a>      <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> OUTPUT_BUF_SIZE<span style="color: #990000">)</span>
+<a name="line87">087: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_FILE_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line88">088: </a>
+<a name="line89">089: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>next_output_byte <span style="color: #990000">=</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">;</span>
+<a name="line90">090: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>free_in_buffer <span style="color: #990000">=</span> OUTPUT_BUF_SIZE<span style="color: #990000">;</span>
+<a name="line91">091: </a>
+<a name="line92">092: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>
+<a name="line93">093: </a><span style="color: #FF0000">}</span>
+<a name="line94">094: </a>
+<a name="line95">095: </a>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> * Terminate destination --- called by jpeg_finish_compress</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900"> * after all data has been written.  Usually needs to flush buffer.</span></span>
+<a name="line99">099: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: *not* called by jpeg_abort or jpeg_destroy; surrounding</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900"> * application must deal with any cleanup that should happen even</span></span>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900"> * for error exit.</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line104">104: </a>
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000000">term_destination</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line107">107: </a><span style="color: #FF0000">{</span>
+<a name="line108">108: </a>  my_dest_ptr dest <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_dest_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line109">109: </a>  size_t datacount <span style="color: #990000">=</span> OUTPUT_BUF_SIZE <span style="color: #990000">-</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line110">110: </a>
+<a name="line111">111: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Write any data remaining in the buffer */</span></span>
+<a name="line112">112: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>datacount <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line113">113: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">JFWRITE</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>outfile<span style="color: #990000">,</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">,</span> datacount<span style="color: #990000">)</span> <span style="color: #990000">!</span><span style="color: #990000">=</span> datacount<span style="color: #990000">)</span>
+<a name="line114">114: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_FILE_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line115">115: </a>  <span style="color: #FF0000">}</span>
+<a name="line116">116: </a>  <span style="font-weight: bold"><span style="color: #000000">fflush</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>outfile<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line117">117: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Make sure we wrote the output file OK */</span></span>
+<a name="line118">118: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">ferror</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>outfile<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line119">119: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_FILE_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line120">120: </a><span style="color: #FF0000">}</span>
+<a name="line121">121: </a>
+<a name="line122">122: </a>
+<a name="line123">123: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line124">124: </a><span style="font-style: italic"><span style="color: #9A1900"> * Prepare for output to a stdio stream.</span></span>
+<a name="line125">125: </a><span style="font-style: italic"><span style="color: #9A1900"> * The caller must have already opened the stream, and is responsible</span></span>
+<a name="line126">126: </a><span style="font-style: italic"><span style="color: #9A1900"> * for closing it after finishing compression.</span></span>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line128">128: </a>
+<a name="line129">129: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_stdio_dest</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> FILE <span style="color: #990000">*</span> outfile<span style="color: #990000">)</span>
+<a name="line131">131: </a><span style="color: #FF0000">{</span>
+<a name="line132">132: </a>  my_dest_ptr dest<span style="color: #990000">;</span>
+<a name="line133">133: </a>
+<a name="line134">134: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* The destination object is made permanent so that multiple JPEG images</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900">   * can be written to the same file without re-executing jpeg_stdio_dest.</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900">   * This makes it dangerous to use this manager and a different destination</span></span>
+<a name="line137">137: </a><span style="font-style: italic"><span style="color: #9A1900">   * manager serially with the same JPEG object, because their private object</span></span>
+<a name="line138">138: </a><span style="font-style: italic"><span style="color: #9A1900">   * sizes may be different.  Caveat programmer.</span></span>
+<a name="line139">139: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line140">140: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>    <span style="font-style: italic"><span style="color: #9A1900">/* first time for this JPEG object? */</span></span>
+<a name="line141">141: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_destination_mgr <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line142">142: </a>      <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_PERMANENT<span style="color: #990000">,</span>
+<a name="line143">143: </a>                                  <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>my_destination_mgr<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line144">144: </a>  <span style="color: #FF0000">}</span>
+<a name="line145">145: </a>
+<a name="line146">146: </a>  dest <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_dest_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line147">147: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>init_destination <span style="color: #990000">=</span> init_destination<span style="color: #990000">;</span>
+<a name="line148">148: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>empty_output_buffer <span style="color: #990000">=</span> empty_output_buffer<span style="color: #990000">;</span>
+<a name="line149">149: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>term_destination <span style="color: #990000">=</span> term_destination<span style="color: #990000">;</span>
+<a name="line150">150: </a>  dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>outfile <span style="color: #990000">=</span> outfile<span style="color: #990000">;</span>
+<a name="line151">151: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

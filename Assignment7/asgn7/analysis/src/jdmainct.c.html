@@ -1,0 +1,531 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jdmainct.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jdmainct.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains the main buffer controller for decompression.</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * The main buffer lies between the JPEG decompressor proper and the</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * post-processor; it holds downsampled data in the JPEG colorspace.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that this code is bypassed in raw-data mode, since the application</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * supplies the equivalent of the main buffer in that case.</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line15">015: </a>
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line19">019: </a>
+<a name="line20">020: </a>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> * In the current system design, the main buffer need never be a full-image</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * buffer; any full-height buffers will be found inside the coefficient or</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * postprocessing controllers.  Nonetheless, the main controller is not</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * trivial.  Its responsibility is to provide context rows for upsampling/</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * rescaling, and doing this in an efficient fashion is a bit tricky.</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * Postprocessor input data is counted in "row groups".  A row group</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * is defined to be (v_samp_factor * DCT_scaled_size / min_DCT_scaled_size)</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * sample rows of each component.  (We require DCT_scaled_size values to be</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * chosen such that these numbers are integers.  In practice DCT_scaled_size</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * values will likely be powers of two, so we actually have the stronger</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> * condition that DCT_scaled_size / min_DCT_scaled_size is an integer.)</span></span>
+<a name="line34">034: </a><span style="font-style: italic"><span style="color: #9A1900"> * Upsampling will typically produce max_v_samp_factor pixel rows from each</span></span>
+<a name="line35">035: </a><span style="font-style: italic"><span style="color: #9A1900"> * row group (times any additional scale factor that the upsampler is</span></span>
+<a name="line36">036: </a><span style="font-style: italic"><span style="color: #9A1900"> * applying).</span></span>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> * The coefficient controller will deliver data to us one iMCU row at a time;</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900"> * each iMCU row contains v_samp_factor * DCT_scaled_size sample rows, or</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * exactly min_DCT_scaled_size row groups.  (This amount of data corresponds</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * to one row of MCUs when the image is fully interleaved.)  Note that the</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> * number of sample rows varies across components, but the number of row</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900"> * groups does not.  Some garbage sample rows may be included in the last iMCU</span></span>
+<a name="line44">044: </a><span style="font-style: italic"><span style="color: #9A1900"> * row at the bottom of the image.</span></span>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line46">046: </a><span style="font-style: italic"><span style="color: #9A1900"> * Depending on the vertical scaling algorithm used, the upsampler may need</span></span>
+<a name="line47">047: </a><span style="font-style: italic"><span style="color: #9A1900"> * access to the sample row(s) above and below its current input row group.</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900"> * The upsampler is required to set need_context_rows TRUE at global selection</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * time if so.  When need_context_rows is FALSE, this controller can simply</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> * obtain one iMCU row at a time from the coefficient controller and dole it</span></span>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900"> * out as row groups to the postprocessor.</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> * When need_context_rows is TRUE, this controller guarantees that the buffer</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> * passed to postprocessing contains at least one row group's worth of samples</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * above and below the row group(s) being processed.  Note that the context</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> * rows "above" the first passed row group appear at negative row offsets in</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * the passed buffer.  At the top and bottom of the image, the required</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * context rows are manufactured by duplicating the first or last real sample</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> * row; this avoids having special cases in the upsampling inner loops.</span></span>
+<a name="line60">060: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900"> * The amount of context is fixed at one row group just because that's a</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * convenient number for this controller to work with.  The existing</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> * upsamplers really only need one sample row of context.  An upsampler</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> * supporting arbitrary output rescaling might wish for more than one row</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * group of context when shrinking the image; tough, we don't handle that.</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * (This is justified by the assumption that downsizing will be handled mostly</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * by adjusting the DCT_scaled_size values, so that the actual scale factor at</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * the upsample step needn't be much less than one.)</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> * To provide the desired context, we have to retain the last two row groups</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * of one iMCU row while reading in the next iMCU row.  (The last row group</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> * can't be processed until we have another row group for its below-context,</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * and so we have to save the next-to-last group too for its above-context.)</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * We could do this most simply by copying data around in our buffer, but</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> * that'd be very slow.  We can avoid copying any data by creating a rather</span></span>
+<a name="line76">076: </a><span style="font-style: italic"><span style="color: #9A1900"> * strange pointer structure.  Here's how it works.  We allocate a workspace</span></span>
+<a name="line77">077: </a><span style="font-style: italic"><span style="color: #9A1900"> * consisting of M+2 row groups (where M = min_DCT_scaled_size is the number</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900"> * of row groups per iMCU row).  We create two sets of redundant pointers to</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900"> * the workspace.  Labeling the physical row groups 0 to M+1, the synthesized</span></span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900"> * pointer lists look like this:</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   M+1                          M-1</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> * master pointer --&gt; 0         master pointer --&gt; 0</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> *                    1                            1</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   ...                          ...</span></span>
+<a name="line85">085: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   M-3                          M-3</span></span>
+<a name="line86">086: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   M-2                           M</span></span>
+<a name="line87">087: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   M-1                          M+1</span></span>
+<a name="line88">088: </a><span style="font-style: italic"><span style="color: #9A1900"> *                    M                           M-2</span></span>
+<a name="line89">089: </a><span style="font-style: italic"><span style="color: #9A1900"> *                   M+1                          M-1</span></span>
+<a name="line90">090: </a><span style="font-style: italic"><span style="color: #9A1900"> *                    0                            0</span></span>
+<a name="line91">091: </a><span style="font-style: italic"><span style="color: #9A1900"> * We read alternate iMCU rows using each master pointer; thus the last two</span></span>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900"> * row groups of the previous iMCU row remain un-overwritten in the workspace.</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900"> * The pointer lists are set up so that the required context rows appear to</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> * be adjacent to the proper places when we pass the pointer lists to the</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * upsampler.</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> * The above pictures describe the normal state of the pointer lists.</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900"> * At top and bottom of the image, we diddle the pointer lists to duplicate</span></span>
+<a name="line99">099: </a><span style="font-style: italic"><span style="color: #9A1900"> * the first or last sample row as necessary (this is cheaper than copying</span></span>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900"> * sample rows around).</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900"> * This scheme breaks down if M &lt; 2, ie, min_DCT_scaled_size is 1.  In that</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> * situation each iMCU row provides only one row group so the buffering logic</span></span>
+<a name="line104">104: </a><span style="font-style: italic"><span style="color: #9A1900"> * must be different (eg, we must read two iMCU rows before we can emit the</span></span>
+<a name="line105">105: </a><span style="font-style: italic"><span style="color: #9A1900"> * first row group).  For now, we simply do not support providing context</span></span>
+<a name="line106">106: </a><span style="font-style: italic"><span style="color: #9A1900"> * rows when min_DCT_scaled_size is 1.  That combination seems unlikely to</span></span>
+<a name="line107">107: </a><span style="font-style: italic"><span style="color: #9A1900"> * be worth providing --- if someone wants a 1/8th-size preview, they probably</span></span>
+<a name="line108">108: </a><span style="font-style: italic"><span style="color: #9A1900"> * want it quick and dirty, so a context-free upsampler is sufficient.</span></span>
+<a name="line109">109: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line110">110: </a>
+<a name="line111">111: </a>
+<a name="line112">112: </a><span style="font-style: italic"><span style="color: #9A1900">/* Private buffer controller object */</span></span>
+<a name="line113">113: </a>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line115">115: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_d_main_controller pub<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* public fields */</span></span>
+<a name="line116">116: </a>
+<a name="line117">117: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Pointer to allocated workspace (M or M+2 row groups). */</span></span>
+<a name="line118">118: </a>  JSAMPARRAY buffer<span style="color: #990000">[</span>MAX_COMPONENTS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line119">119: </a>
+<a name="line120">120: </a>  boolean buffer_full<span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* Have we gotten an iMCU row from decoder? */</span></span>
+<a name="line121">121: </a>  JDIMENSION rowgroup_ctr<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* counts row groups output to postprocessor */</span></span>
+<a name="line122">122: </a>
+<a name="line123">123: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Remaining fields are only used in the context case. */</span></span>
+<a name="line124">124: </a>
+<a name="line125">125: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* These are the master pointers to the funny-order pointer lists. */</span></span>
+<a name="line126">126: </a>  JSAMPIMAGE xbuffer<span style="color: #990000">[</span><span style="color: #993399">2</span><span style="color: #990000">]</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* pointers to weird pointer lists */</span></span>
+<a name="line127">127: </a>
+<a name="line128">128: </a>  <span style="color: #009900">int</span> whichptr<span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* indicates which pointer set is now in use */</span></span>
+<a name="line129">129: </a>  <span style="color: #009900">int</span> context_state<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* process_data state machine status */</span></span>
+<a name="line130">130: </a>  JDIMENSION rowgroups_avail<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* row groups available to postprocessor */</span></span>
+<a name="line131">131: </a>  JDIMENSION iMCU_row_ctr<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* counts iMCU rows to detect image top/bot */</span></span>
+<a name="line132">132: </a><span style="color: #FF0000">}</span> my_main_controller<span style="color: #990000">;</span>
+<a name="line133">133: </a>
+<a name="line134">134: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> my_main_controller <span style="color: #990000">*</span> my_main_ptr<span style="color: #990000">;</span>
+<a name="line135">135: </a>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900">/* context_state values: */</span></span>
+<a name="line137">137: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CTX_PREPARE_FOR_IMCU    <span style="color: #993399">0</span>       <span style="font-style: italic"><span style="color: #9A1900">/* need to prepare for MCU row */</span></span>
+<a name="line138">138: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CTX_PROCESS_IMCU        <span style="color: #993399">1</span>       <span style="font-style: italic"><span style="color: #9A1900">/* feeding iMCU to postprocessor */</span></span>
+<a name="line139">139: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CTX_POSTPONED_ROW       <span style="color: #993399">2</span>       <span style="font-style: italic"><span style="color: #9A1900">/* feeding postponed row group */</span></span>
+<a name="line140">140: </a>
+<a name="line141">141: </a>
+<a name="line142">142: </a><span style="font-style: italic"><span style="color: #9A1900">/* Forward declarations */</span></span>
+<a name="line143">143: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> process_data_simple_main
+<a name="line144">144: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span>
+<a name="line145">145: </a>             JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span> JDIMENSION out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line146">146: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> process_data_context_main
+<a name="line147">147: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span>
+<a name="line148">148: </a>             JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span> JDIMENSION out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line149">149: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> QUANT_2PASS_SUPPORTED
+<a name="line150">150: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> process_data_crank_post
+<a name="line151">151: </a>        <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> JSAMPARRAY output_buf<span style="color: #990000">,</span>
+<a name="line152">152: </a>             JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span> JDIMENSION out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line153">153: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line154">154: </a>
+<a name="line155">155: </a>
+<a name="line156">156: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #000000">alloc_funny_pointers</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line158">158: </a><span style="font-style: italic"><span style="color: #9A1900">/* Allocate space for the funny pointer lists.</span></span>
+<a name="line159">159: </a><span style="font-style: italic"><span style="color: #9A1900"> * This is done only once, not once per pass.</span></span>
+<a name="line160">160: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line161">161: </a><span style="color: #FF0000">{</span>
+<a name="line162">162: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line163">163: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> rgroup<span style="color: #990000">;</span>
+<a name="line164">164: </a>  <span style="color: #009900">int</span> M <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line165">165: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line166">166: </a>  JSAMPARRAY xbuf<span style="color: #990000">;</span>
+<a name="line167">167: </a>
+<a name="line168">168: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Get top-level space for component array pointers.</span></span>
+<a name="line169">169: </a><span style="font-style: italic"><span style="color: #9A1900">   * We alloc both arrays with one call to save a few cycles.</span></span>
+<a name="line170">170: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line171">171: </a>  main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>JSAMPIMAGE<span style="color: #990000">)</span>
+<a name="line172">172: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line173">173: </a>                                cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components <span style="color: #990000">*</span> <span style="color: #993399">2</span> <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>JSAMPARRAY<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line174">174: </a>  main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span> <span style="color: #990000">+</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line175">175: </a>
+<a name="line176">176: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line177">177: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line178">178: </a>    rgroup <span style="color: #990000">=</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span> <span style="color: #990000">/</span>
+<a name="line179">179: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* height of a row group of component */</span></span>
+<a name="line180">180: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Get space for pointer lists --- M+4 row groups in each list.</span></span>
+<a name="line181">181: </a><span style="font-style: italic"><span style="color: #9A1900">     * We alloc both pointer lists with one call to save a few cycles.</span></span>
+<a name="line182">182: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line183">183: </a>    xbuf <span style="color: #990000">=</span> <span style="color: #990000">(</span>JSAMPARRAY<span style="color: #990000">)</span>
+<a name="line184">184: </a>      <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line185">185: </a>                                  <span style="color: #993399">2</span> <span style="color: #990000">*</span> <span style="color: #990000">(</span>rgroup <span style="color: #990000">*</span> <span style="color: #990000">(</span>M <span style="color: #990000">+</span> <span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>JSAMPROW<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line186">186: </a>    xbuf <span style="color: #990000">+</span><span style="color: #990000">=</span> rgroup<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* want one row group at negative offsets */</span></span>
+<a name="line187">187: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf<span style="color: #990000">;</span>
+<a name="line188">188: </a>    xbuf <span style="color: #990000">+</span><span style="color: #990000">=</span> rgroup <span style="color: #990000">*</span> <span style="color: #990000">(</span>M <span style="color: #990000">+</span> <span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line189">189: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf<span style="color: #990000">;</span>
+<a name="line190">190: </a>  <span style="color: #FF0000">}</span>
+<a name="line191">191: </a><span style="color: #FF0000">}</span>
+<a name="line192">192: </a>
+<a name="line193">193: </a>
+<a name="line194">194: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line195">195: </a><span style="font-weight: bold"><span style="color: #000000">make_funny_pointers</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line196">196: </a><span style="font-style: italic"><span style="color: #9A1900">/* Create the funny pointer lists discussed in the comments above.</span></span>
+<a name="line197">197: </a><span style="font-style: italic"><span style="color: #9A1900"> * The actual workspace is already allocated (in main-&gt;buffer),</span></span>
+<a name="line198">198: </a><span style="font-style: italic"><span style="color: #9A1900"> * and the space for the pointer lists is allocated too.</span></span>
+<a name="line199">199: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine just fills in the curiously ordered lists.</span></span>
+<a name="line200">200: </a><span style="font-style: italic"><span style="color: #9A1900"> * This will be repeated at the beginning of each pass.</span></span>
+<a name="line201">201: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line202">202: </a><span style="color: #FF0000">{</span>
+<a name="line203">203: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line204">204: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> i<span style="color: #990000">,</span> rgroup<span style="color: #990000">;</span>
+<a name="line205">205: </a>  <span style="color: #009900">int</span> M <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line206">206: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line207">207: </a>  JSAMPARRAY buf<span style="color: #990000">,</span> xbuf0<span style="color: #990000">,</span> xbuf1<span style="color: #990000">;</span>
+<a name="line208">208: </a>
+<a name="line209">209: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line210">210: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line211">211: </a>    rgroup <span style="color: #990000">=</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span> <span style="color: #990000">/</span>
+<a name="line212">212: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* height of a row group of component */</span></span>
+<a name="line213">213: </a>    xbuf0 <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line214">214: </a>    xbuf1 <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line215">215: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* First copy the workspace pointers as-is */</span></span>
+<a name="line216">216: </a>    buf <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line217">217: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> rgroup <span style="color: #990000">*</span> <span style="color: #990000">(</span>M <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line218">218: </a>      xbuf0<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf1<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> buf<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line219">219: </a>    <span style="color: #FF0000">}</span>
+<a name="line220">220: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* In the second list, put the last four row groups in swapped order */</span></span>
+<a name="line221">221: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> rgroup <span style="color: #990000">*</span> <span style="color: #993399">2</span><span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line222">222: </a>      xbuf1<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">-</span><span style="color: #993399">2</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span> <span style="color: #990000">=</span> buf<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span>M <span style="color: #990000">+</span> i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line223">223: </a>      xbuf1<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span>M <span style="color: #990000">+</span> i<span style="color: #990000">]</span> <span style="color: #990000">=</span> buf<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">-</span><span style="color: #993399">2</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line224">224: </a>    <span style="color: #FF0000">}</span>
+<a name="line225">225: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* The wraparound pointers at top and bottom will be filled later</span></span>
+<a name="line226">226: </a><span style="font-style: italic"><span style="color: #9A1900">     * (see set_wraparound_pointers, below).  Initially we want the "above"</span></span>
+<a name="line227">227: </a><span style="font-style: italic"><span style="color: #9A1900">     * pointers to duplicate the first actual data line.  This only needs</span></span>
+<a name="line228">228: </a><span style="font-style: italic"><span style="color: #9A1900">     * to happen in xbuffer[0].</span></span>
+<a name="line229">229: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line230">230: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> rgroup<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line231">231: </a>      xbuf0<span style="color: #990000">[</span>i <span style="color: #990000">-</span> rgroup<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf0<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line232">232: </a>    <span style="color: #FF0000">}</span>
+<a name="line233">233: </a>  <span style="color: #FF0000">}</span>
+<a name="line234">234: </a><span style="color: #FF0000">}</span>
+<a name="line235">235: </a>
+<a name="line236">236: </a>
+<a name="line237">237: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line238">238: </a><span style="font-weight: bold"><span style="color: #000000">set_wraparound_pointers</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line239">239: </a><span style="font-style: italic"><span style="color: #9A1900">/* Set up the "wraparound" pointers at top and bottom of the pointer lists.</span></span>
+<a name="line240">240: </a><span style="font-style: italic"><span style="color: #9A1900"> * This changes the pointer list state from top-of-image to the normal state.</span></span>
+<a name="line241">241: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line242">242: </a><span style="color: #FF0000">{</span>
+<a name="line243">243: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line244">244: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> i<span style="color: #990000">,</span> rgroup<span style="color: #990000">;</span>
+<a name="line245">245: </a>  <span style="color: #009900">int</span> M <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line246">246: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line247">247: </a>  JSAMPARRAY xbuf0<span style="color: #990000">,</span> xbuf1<span style="color: #990000">;</span>
+<a name="line248">248: </a>
+<a name="line249">249: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line250">250: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line251">251: </a>    rgroup <span style="color: #990000">=</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span> <span style="color: #990000">/</span>
+<a name="line252">252: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* height of a row group of component */</span></span>
+<a name="line253">253: </a>    xbuf0 <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line254">254: </a>    xbuf1 <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span><span style="color: #993399">1</span><span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line255">255: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> rgroup<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line256">256: </a>      xbuf0<span style="color: #990000">[</span>i <span style="color: #990000">-</span> rgroup<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf0<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">+</span><span style="color: #993399">1</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line257">257: </a>      xbuf1<span style="color: #990000">[</span>i <span style="color: #990000">-</span> rgroup<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf1<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">+</span><span style="color: #993399">1</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line258">258: </a>      xbuf0<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">+</span><span style="color: #993399">2</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf0<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line259">259: </a>      xbuf1<span style="color: #990000">[</span>rgroup<span style="color: #990000">*</span><span style="color: #990000">(</span>M<span style="color: #990000">+</span><span style="color: #993399">2</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> i<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf1<span style="color: #990000">[</span>i<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line260">260: </a>    <span style="color: #FF0000">}</span>
+<a name="line261">261: </a>  <span style="color: #FF0000">}</span>
+<a name="line262">262: </a><span style="color: #FF0000">}</span>
+<a name="line263">263: </a>
+<a name="line264">264: </a>
+<a name="line265">265: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line266">266: </a><span style="font-weight: bold"><span style="color: #000000">set_bottom_pointers</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line267">267: </a><span style="font-style: italic"><span style="color: #9A1900">/* Change the pointer lists to duplicate the last sample row at the bottom</span></span>
+<a name="line268">268: </a><span style="font-style: italic"><span style="color: #9A1900"> * of the image.  whichptr indicates which xbuffer holds the final iMCU row.</span></span>
+<a name="line269">269: </a><span style="font-style: italic"><span style="color: #9A1900"> * Also sets rowgroups_avail to indicate number of nondummy row groups in row.</span></span>
+<a name="line270">270: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line271">271: </a><span style="color: #FF0000">{</span>
+<a name="line272">272: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line273">273: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> i<span style="color: #990000">,</span> rgroup<span style="color: #990000">,</span> iMCUheight<span style="color: #990000">,</span> rows_left<span style="color: #990000">;</span>
+<a name="line274">274: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line275">275: </a>  JSAMPARRAY xbuf<span style="color: #990000">;</span>
+<a name="line276">276: </a>
+<a name="line277">277: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line278">278: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line279">279: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count sample rows in one iMCU row and in one row group */</span></span>
+<a name="line280">280: </a>    iMCUheight <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line281">281: </a>    rgroup <span style="color: #990000">=</span> iMCUheight <span style="color: #990000">/</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line282">282: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count nondummy sample rows remaining for this component */</span></span>
+<a name="line283">283: </a>    rows_left <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>downsampled_height <span style="color: #990000">%</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> iMCUheight<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line284">284: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>rows_left <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> rows_left <span style="color: #990000">=</span> iMCUheight<span style="color: #990000">;</span>
+<a name="line285">285: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count nondummy row groups.  Should get same answer for each component,</span></span>
+<a name="line286">286: </a><span style="font-style: italic"><span style="color: #9A1900">     * so we need only do it once.</span></span>
+<a name="line287">287: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line288">288: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line289">289: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail <span style="color: #990000">=</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>rows_left<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">)</span> <span style="color: #990000">/</span> rgroup <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line290">290: </a>    <span style="color: #FF0000">}</span>
+<a name="line291">291: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Duplicate the last real sample row rgroup*2 times; this pads out the</span></span>
+<a name="line292">292: </a><span style="font-style: italic"><span style="color: #9A1900">     * last partial rowgroup and ensures at least one full rowgroup of context.</span></span>
+<a name="line293">293: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line294">294: </a>    xbuf <span style="color: #990000">=</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr<span style="color: #990000">]</span><span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line295">295: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> rgroup <span style="color: #990000">*</span> <span style="color: #993399">2</span><span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line296">296: </a>      xbuf<span style="color: #990000">[</span>rows_left <span style="color: #990000">+</span> i<span style="color: #990000">]</span> <span style="color: #990000">=</span> xbuf<span style="color: #990000">[</span>rows_left<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line297">297: </a>    <span style="color: #FF0000">}</span>
+<a name="line298">298: </a>  <span style="color: #FF0000">}</span>
+<a name="line299">299: </a><span style="color: #FF0000">}</span>
+<a name="line300">300: </a>
+<a name="line301">301: </a>
+<a name="line302">302: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line303">303: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize for a processing pass.</span></span>
+<a name="line304">304: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line305">305: </a>
+<a name="line306">306: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line307">307: </a><span style="font-weight: bold"><span style="color: #000000">start_pass_main</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> J_BUF_MODE pass_mode<span style="color: #990000">)</span>
+<a name="line308">308: </a><span style="color: #FF0000">{</span>
+<a name="line309">309: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line310">310: </a>
+<a name="line311">311: </a>  <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>pass_mode<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line312">312: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JBUF_PASS_THRU<span style="color: #990000">:</span>
+<a name="line313">313: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>upsample<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>need_context_rows<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line314">314: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>process_data <span style="color: #990000">=</span> process_data_context_main<span style="color: #990000">;</span>
+<a name="line315">315: </a>      <span style="font-weight: bold"><span style="color: #000000">make_funny_pointers</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* Create the xbuffer[] lists */</span></span>
+<a name="line316">316: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* Read first iMCU row into xbuffer[0] */</span></span>
+<a name="line317">317: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>context_state <span style="color: #990000">=</span> CTX_PREPARE_FOR_IMCU<span style="color: #990000">;</span>
+<a name="line318">318: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>iMCU_row_ctr <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line319">319: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line320">320: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Simple case with no context needed */</span></span>
+<a name="line321">321: </a>      main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>process_data <span style="color: #990000">=</span> process_data_simple_main<span style="color: #990000">;</span>
+<a name="line322">322: </a>    <span style="color: #FF0000">}</span>
+<a name="line323">323: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* Mark buffer empty */</span></span>
+<a name="line324">324: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line325">325: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line326">326: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> QUANT_2PASS_SUPPORTED
+<a name="line327">327: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> JBUF_CRANK_DEST<span style="color: #990000">:</span>
+<a name="line328">328: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* For last pass of 2-pass quantization, just crank the postprocessor */</span></span>
+<a name="line329">329: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>process_data <span style="color: #990000">=</span> process_data_crank_post<span style="color: #990000">;</span>
+<a name="line330">330: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line331">331: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line332">332: </a>  <span style="font-weight: bold"><span style="color: #0000FF">default</span></span><span style="color: #990000">:</span>
+<a name="line333">333: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_BUFFER_MODE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line334">334: </a>    <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line335">335: </a>  <span style="color: #FF0000">}</span>
+<a name="line336">336: </a><span style="color: #FF0000">}</span>
+<a name="line337">337: </a>
+<a name="line338">338: </a>
+<a name="line339">339: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line340">340: </a><span style="font-style: italic"><span style="color: #9A1900"> * Process some data.</span></span>
+<a name="line341">341: </a><span style="font-style: italic"><span style="color: #9A1900"> * This handles the simple case where no context is required.</span></span>
+<a name="line342">342: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line343">343: </a>
+<a name="line344">344: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line345">345: </a><span style="font-weight: bold"><span style="color: #000000">process_data_simple_main</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line346">346: </a>                          JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span>
+<a name="line347">347: </a>                          JDIMENSION out_rows_avail<span style="color: #990000">)</span>
+<a name="line348">348: </a><span style="color: #FF0000">{</span>
+<a name="line349">349: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line350">350: </a>  JDIMENSION rowgroups_avail<span style="color: #990000">;</span>
+<a name="line351">351: </a>
+<a name="line352">352: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Read input data if we haven't filled the main buffer yet */</span></span>
+<a name="line353">353: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line354">354: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>coef<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>decompress_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line355">355: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* suspension forced, can do nothing more */</span></span>
+<a name="line356">356: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* OK, we have an iMCU row to work with */</span></span>
+<a name="line357">357: </a>  <span style="color: #FF0000">}</span>
+<a name="line358">358: </a>
+<a name="line359">359: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* There are always min_DCT_scaled_size row groups in an iMCU row. */</span></span>
+<a name="line360">360: </a>  rowgroups_avail <span style="color: #990000">=</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line361">361: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Note: at the bottom of the image, we may pass extra garbage row groups</span></span>
+<a name="line362">362: </a><span style="font-style: italic"><span style="color: #9A1900">   * to the postprocessor.  The postprocessor has to check for bottom</span></span>
+<a name="line363">363: </a><span style="font-style: italic"><span style="color: #9A1900">   * of image anyway (at row resolution), so no point in us doing it too.</span></span>
+<a name="line364">364: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line365">365: </a>
+<a name="line366">366: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Feed the postprocessor */</span></span>
+<a name="line367">367: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post_process_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">,</span>
+<a name="line368">368: </a>                                     <span style="color: #990000">&amp;</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr<span style="color: #990000">,</span> rowgroups_avail<span style="color: #990000">,</span>
+<a name="line369">369: </a>                                     output_buf<span style="color: #990000">,</span> out_row_ctr<span style="color: #990000">,</span> out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line370">370: </a>
+<a name="line371">371: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Has postprocessor consumed all the data yet? If so, mark buffer empty */</span></span>
+<a name="line372">372: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> rowgroups_avail<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line373">373: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line374">374: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line375">375: </a>  <span style="color: #FF0000">}</span>
+<a name="line376">376: </a><span style="color: #FF0000">}</span>
+<a name="line377">377: </a>
+<a name="line378">378: </a>
+<a name="line379">379: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line380">380: </a><span style="font-style: italic"><span style="color: #9A1900"> * Process some data.</span></span>
+<a name="line381">381: </a><span style="font-style: italic"><span style="color: #9A1900"> * This handles the case where context rows must be provided.</span></span>
+<a name="line382">382: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line383">383: </a>
+<a name="line384">384: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line385">385: </a><span style="font-weight: bold"><span style="color: #000000">process_data_context_main</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line386">386: </a>                           JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span>
+<a name="line387">387: </a>                           JDIMENSION out_rows_avail<span style="color: #990000">)</span>
+<a name="line388">388: </a><span style="color: #FF0000">{</span>
+<a name="line389">389: </a>  my_main_ptr main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main<span style="color: #990000">;</span>
+<a name="line390">390: </a>
+<a name="line391">391: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Read input data if we haven't filled the main buffer yet */</span></span>
+<a name="line392">392: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line393">393: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>coef<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>decompress_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span>
+<a name="line394">394: </a>                                           main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line395">395: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* suspension forced, can do nothing more */</span></span>
+<a name="line396">396: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* OK, we have an iMCU row to work with */</span></span>
+<a name="line397">397: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>iMCU_row_ctr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* count rows received */</span></span>
+<a name="line398">398: </a>  <span style="color: #FF0000">}</span>
+<a name="line399">399: </a>
+<a name="line400">400: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Postprocessor typically will not swallow all the input data it is handed</span></span>
+<a name="line401">401: </a><span style="font-style: italic"><span style="color: #9A1900">   * in one call (due to filling the output buffer first).  Must be prepared</span></span>
+<a name="line402">402: </a><span style="font-style: italic"><span style="color: #9A1900">   * to exit and restart.  This switch lets us keep track of how far we got.</span></span>
+<a name="line403">403: </a><span style="font-style: italic"><span style="color: #9A1900">   * Note that each case falls through to the next on successful completion.</span></span>
+<a name="line404">404: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line405">405: </a>  <span style="font-weight: bold"><span style="color: #0000FF">switch</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>context_state<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line406">406: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> CTX_POSTPONED_ROW<span style="color: #990000">:</span>
+<a name="line407">407: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Call postprocessor using previously set pointers for postponed row */</span></span>
+<a name="line408">408: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post_process_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr<span style="color: #990000">]</span><span style="color: #990000">,</span>
+<a name="line409">409: </a>                        <span style="color: #990000">&amp;</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail<span style="color: #990000">,</span>
+<a name="line410">410: </a>                        output_buf<span style="color: #990000">,</span> out_row_ctr<span style="color: #990000">,</span> out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line411">411: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">&lt;</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail<span style="color: #990000">)</span>
+<a name="line412">412: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* Need to suspend */</span></span>
+<a name="line413">413: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>context_state <span style="color: #990000">=</span> CTX_PREPARE_FOR_IMCU<span style="color: #990000">;</span>
+<a name="line414">414: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>out_row_ctr <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> out_rows_avail<span style="color: #990000">)</span>
+<a name="line415">415: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* Postprocessor exactly filled output buf */</span></span>
+<a name="line416">416: </a>    <span style="font-style: italic"><span style="color: #9A1900">/*FALLTHROUGH*/</span></span>
+<a name="line417">417: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> CTX_PREPARE_FOR_IMCU<span style="color: #990000">:</span>
+<a name="line418">418: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Prepare to process first M-1 row groups of this iMCU row */</span></span>
+<a name="line419">419: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line420">420: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail <span style="color: #990000">=</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size <span style="color: #990000">-</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line421">421: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Check for bottom of image: if so, tweak pointers to "duplicate"</span></span>
+<a name="line422">422: </a><span style="font-style: italic"><span style="color: #9A1900">     * the last sample row, and adjust rowgroups_avail to ignore padding rows.</span></span>
+<a name="line423">423: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line424">424: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>iMCU_row_ctr <span style="color: #990000">=</span><span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_iMCU_rows<span style="color: #990000">)</span>
+<a name="line425">425: </a>      <span style="font-weight: bold"><span style="color: #000000">set_bottom_pointers</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line426">426: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>context_state <span style="color: #990000">=</span> CTX_PROCESS_IMCU<span style="color: #990000">;</span>
+<a name="line427">427: </a>    <span style="font-style: italic"><span style="color: #9A1900">/*FALLTHROUGH*/</span></span>
+<a name="line428">428: </a>  <span style="font-weight: bold"><span style="color: #0000FF">case</span></span> CTX_PROCESS_IMCU<span style="color: #990000">:</span>
+<a name="line429">429: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Call postprocessor using previously set pointers */</span></span>
+<a name="line430">430: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post_process_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>xbuffer<span style="color: #990000">[</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr<span style="color: #990000">]</span><span style="color: #990000">,</span>
+<a name="line431">431: </a>                        <span style="color: #990000">&amp;</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr<span style="color: #990000">,</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail<span style="color: #990000">,</span>
+<a name="line432">432: </a>                        output_buf<span style="color: #990000">,</span> out_row_ctr<span style="color: #990000">,</span> out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line433">433: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">&lt;</span> main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail<span style="color: #990000">)</span>
+<a name="line434">434: </a>      <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                   <span style="font-style: italic"><span style="color: #9A1900">/* Need to suspend */</span></span>
+<a name="line435">435: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* After the first iMCU, change wraparound pointers to normal state */</span></span>
+<a name="line436">436: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>iMCU_row_ctr <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line437">437: </a>      <span style="font-weight: bold"><span style="color: #000000">set_wraparound_pointers</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line438">438: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Prepare to load new iMCU row using other xbuffer list */</span></span>
+<a name="line439">439: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>whichptr <span style="color: #990000">^</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* 0=&gt;1 or 1=&gt;0 */</span></span>
+<a name="line440">440: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer_full <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>
+<a name="line441">441: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Still need to process last row group of this iMCU row, */</span></span>
+<a name="line442">442: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* which is saved at index M+1 of the other xbuffer */</span></span>
+<a name="line443">443: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroup_ctr <span style="color: #990000">=</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line444">444: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>rowgroups_avail <span style="color: #990000">=</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line445">445: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>context_state <span style="color: #990000">=</span> CTX_POSTPONED_ROW<span style="color: #990000">;</span>
+<a name="line446">446: </a>  <span style="color: #FF0000">}</span>
+<a name="line447">447: </a><span style="color: #FF0000">}</span>
+<a name="line448">448: </a>
+<a name="line449">449: </a>
+<a name="line450">450: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line451">451: </a><span style="font-style: italic"><span style="color: #9A1900"> * Process some data.</span></span>
+<a name="line452">452: </a><span style="font-style: italic"><span style="color: #9A1900"> * Final pass of two-pass quantization: just call the postprocessor.</span></span>
+<a name="line453">453: </a><span style="font-style: italic"><span style="color: #9A1900"> * Source data will be the postprocessor controller's internal buffer.</span></span>
+<a name="line454">454: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line455">455: </a>
+<a name="line456">456: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> QUANT_2PASS_SUPPORTED
+<a name="line457">457: </a>
+<a name="line458">458: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line459">459: </a><span style="font-weight: bold"><span style="color: #000000">process_data_crank_post</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line460">460: </a>                         JSAMPARRAY output_buf<span style="color: #990000">,</span> JDIMENSION <span style="color: #990000">*</span>out_row_ctr<span style="color: #990000">,</span>
+<a name="line461">461: </a>                         JDIMENSION out_rows_avail<span style="color: #990000">)</span>
+<a name="line462">462: </a><span style="color: #FF0000">{</span>
+<a name="line463">463: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>post_process_data<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">(</span>JSAMPIMAGE<span style="color: #990000">)</span> NULL<span style="color: #990000">,</span>
+<a name="line464">464: </a>                                     <span style="color: #990000">(</span>JDIMENSION <span style="color: #990000">*</span><span style="color: #990000">)</span> NULL<span style="color: #990000">,</span> <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #993399">0</span><span style="color: #990000">,</span>
+<a name="line465">465: </a>                                     output_buf<span style="color: #990000">,</span> out_row_ctr<span style="color: #990000">,</span> out_rows_avail<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line466">466: </a><span style="color: #FF0000">}</span>
+<a name="line467">467: </a>
+<a name="line468">468: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* QUANT_2PASS_SUPPORTED */</span></span>
+<a name="line469">469: </a>
+<a name="line470">470: </a>
+<a name="line471">471: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line472">472: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize main buffer controller.</span></span>
+<a name="line473">473: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line474">474: </a>
+<a name="line475">475: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line476">476: </a><span style="font-weight: bold"><span style="color: #000000">jinit_d_main_controller</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">,</span> boolean need_full_buffer<span style="color: #990000">)</span>
+<a name="line477">477: </a><span style="color: #FF0000">{</span>
+<a name="line478">478: </a>  my_main_ptr main<span style="color: #990000">;</span>
+<a name="line479">479: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> rgroup<span style="color: #990000">,</span> ngroups<span style="color: #990000">;</span>
+<a name="line480">480: </a>  jpeg_component_info <span style="color: #990000">*</span>compptr<span style="color: #990000">;</span>
+<a name="line481">481: </a>
+<a name="line482">482: </a>  main <span style="color: #990000">=</span> <span style="color: #990000">(</span>my_main_ptr<span style="color: #990000">)</span>
+<a name="line483">483: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line484">484: </a>                                <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>my_main_controller<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line485">485: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>main <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_d_main_controller <span style="color: #990000">*</span><span style="color: #990000">)</span> main<span style="color: #990000">;</span>
+<a name="line486">486: </a>  main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>start_pass <span style="color: #990000">=</span> start_pass_main<span style="color: #990000">;</span>
+<a name="line487">487: </a>
+<a name="line488">488: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>need_full_buffer<span style="color: #990000">)</span>         <span style="font-style: italic"><span style="color: #9A1900">/* shouldn't happen */</span></span>
+<a name="line489">489: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_BUFFER_MODE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line490">490: </a>
+<a name="line491">491: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Allocate the workspace.</span></span>
+<a name="line492">492: </a><span style="font-style: italic"><span style="color: #9A1900">   * ngroups is the number of row groups we need.</span></span>
+<a name="line493">493: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line494">494: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>upsample<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>need_context_rows<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line495">495: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size <span style="color: #990000">&lt;</span> <span style="color: #993399">2</span><span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* unsupported, see comments above */</span></span>
+<a name="line496">496: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NOTIMPL<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line497">497: </a>    <span style="font-weight: bold"><span style="color: #000000">alloc_funny_pointers</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* Alloc space for xbuffer[] lists */</span></span>
+<a name="line498">498: </a>    ngroups <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size <span style="color: #990000">+</span> <span style="color: #993399">2</span><span style="color: #990000">;</span>
+<a name="line499">499: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line500">500: </a>    ngroups <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span>
+<a name="line501">501: </a>  <span style="color: #FF0000">}</span>
+<a name="line502">502: </a>
+<a name="line503">503: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comp_info<span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line504">504: </a>       ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">,</span> compptr<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line505">505: </a>    rgroup <span style="color: #990000">=</span> <span style="color: #990000">(</span>compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>v_samp_factor <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">)</span> <span style="color: #990000">/</span>
+<a name="line506">506: </a>      cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>min_DCT_scaled_size<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* height of a row group of component */</span></span>
+<a name="line507">507: </a>    main<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffer<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_sarray<span style="color: #990000">)</span>
+<a name="line508">508: </a>                        <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line509">509: </a>                         compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>width_in_blocks <span style="color: #990000">*</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>DCT_scaled_size<span style="color: #990000">,</span>
+<a name="line510">510: </a>                         <span style="color: #990000">(</span>JDIMENSION<span style="color: #990000">)</span> <span style="color: #990000">(</span>rgroup <span style="color: #990000">*</span> ngroups<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line511">511: </a>  <span style="color: #FF0000">}</span>
+<a name="line512">512: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

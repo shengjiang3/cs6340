@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jdtrans.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jdtrans.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1995-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains library routines for transcoding decompression,</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * that is, reading raw DCT coefficient arrays from an input JPEG file.</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * The routines in jdapimin.c will also be needed by a transcoder.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line12">012: </a>
+<a name="line13">013: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line14">014: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line16">016: </a>
+<a name="line17">017: </a>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900">/* Forward declarations */</span></span>
+<a name="line19">019: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> transdecode_master_selection <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line20">020: </a>
+<a name="line21">021: </a>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * Read the coefficient arrays from a JPEG file.</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_read_header must be completed before calling this.</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> * The entire image is read into a set of virtual coefficient-block arrays,</span></span>
+<a name="line27">027: </a><span style="font-style: italic"><span style="color: #9A1900"> * one per component.  The return value is a pointer to the array of</span></span>
+<a name="line28">028: </a><span style="font-style: italic"><span style="color: #9A1900"> * virtual-array descriptors.  These can be manipulated directly via the</span></span>
+<a name="line29">029: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG memory manager, or handed off to jpeg_write_coefficients().</span></span>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900"> * To release the memory occupied by the virtual arrays, call</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_finish_decompress() when done with the data.</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> * An alternative usage is to simply obtain access to the coefficient arrays</span></span>
+<a name="line34">034: </a><span style="font-style: italic"><span style="color: #9A1900"> * during a buffered-image-mode decompression operation.  This is allowed</span></span>
+<a name="line35">035: </a><span style="font-style: italic"><span style="color: #9A1900"> * after any jpeg_finish_output() call.  The arrays can be accessed until</span></span>
+<a name="line36">036: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_finish_decompress() is called.  (Note that any call to the library</span></span>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900"> * may reposition the arrays, so don't rely on access_virt_barray() results</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> * to stay valid across library calls.)</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * Returns NULL if suspended.  This case need be checked only if</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * a suspending data source is used.</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line43">043: </a>
+<a name="line44">044: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span>jvirt_barray_ptr <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_read_coefficients</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line46">046: </a><span style="color: #FF0000">{</span>
+<a name="line47">047: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> DSTATE_READY<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line48">048: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* First call: initialize active modules */</span></span>
+<a name="line49">049: </a>    <span style="font-weight: bold"><span style="color: #000000">transdecode_master_selection</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line50">050: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> DSTATE_RDCOEFS<span style="color: #990000">;</span>
+<a name="line51">051: </a>  <span style="color: #FF0000">}</span>
+<a name="line52">052: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> DSTATE_RDCOEFS<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line53">053: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Absorb whole file into the coef buffer */</span></span>
+<a name="line54">054: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span><span style="color: #990000">;</span><span style="color: #990000">;</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line55">055: </a>      <span style="color: #009900">int</span> retcode<span style="color: #990000">;</span>
+<a name="line56">056: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Call progress monitor hook if present */</span></span>
+<a name="line57">057: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line58">058: </a>        <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress_monitor<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line59">059: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Absorb some more input */</span></span>
+<a name="line60">060: </a>      retcode <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>inputctl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>consume_input<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line61">061: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>retcode <span style="color: #990000">=</span><span style="color: #990000">=</span> JPEG_SUSPENDED<span style="color: #990000">)</span>
+<a name="line62">062: </a>        <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> NULL<span style="color: #990000">;</span>
+<a name="line63">063: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>retcode <span style="color: #990000">=</span><span style="color: #990000">=</span> JPEG_REACHED_EOI<span style="color: #990000">)</span>
+<a name="line64">064: </a>        <span style="font-weight: bold"><span style="color: #0000FF">break</span></span><span style="color: #990000">;</span>
+<a name="line65">065: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Advance progress counter if appropriate */</span></span>
+<a name="line66">066: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span>
+<a name="line67">067: </a>          <span style="color: #990000">(</span>retcode <span style="color: #990000">=</span><span style="color: #990000">=</span> JPEG_ROW_COMPLETED <span style="color: #990000">|</span><span style="color: #990000">|</span> retcode <span style="color: #990000">=</span><span style="color: #990000">=</span> JPEG_REACHED_SOS<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line68">068: </a>        <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">+</span><span style="color: #990000">+</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_counter <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_limit<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line69">069: </a>          <span style="font-style: italic"><span style="color: #9A1900">/* startup underestimated number of scans; ratchet up one scan */</span></span>
+<a name="line70">070: </a>          cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_limit <span style="color: #990000">+</span><span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_iMCU_rows<span style="color: #990000">;</span>
+<a name="line71">071: </a>        <span style="color: #FF0000">}</span>
+<a name="line72">072: </a>      <span style="color: #FF0000">}</span>
+<a name="line73">073: </a>    <span style="color: #FF0000">}</span>
+<a name="line74">074: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Set state so that jpeg_finish_decompress does the right thing */</span></span>
+<a name="line75">075: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> DSTATE_STOPPING<span style="color: #990000">;</span>
+<a name="line76">076: </a>  <span style="color: #FF0000">}</span>
+<a name="line77">077: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* At this point we should be in state DSTATE_STOPPING if being used</span></span>
+<a name="line78">078: </a><span style="font-style: italic"><span style="color: #9A1900">   * standalone, or in state DSTATE_BUFIMAGE if being invoked to get access</span></span>
+<a name="line79">079: </a><span style="font-style: italic"><span style="color: #9A1900">   * to the coefficients during a full buffered-image-mode decompression.</span></span>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line81">081: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> DSTATE_STOPPING <span style="color: #990000">|</span><span style="color: #990000">|</span>
+<a name="line82">082: </a>       cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span><span style="color: #990000">=</span> DSTATE_BUFIMAGE<span style="color: #990000">)</span> <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffered_image<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line83">083: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>coef<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>coef_arrays<span style="color: #990000">;</span>
+<a name="line84">084: </a>  <span style="color: #FF0000">}</span>
+<a name="line85">085: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Oops, improper usage */</span></span>
+<a name="line86">086: </a>  <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_STATE<span style="color: #990000">,</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line87">087: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> NULL<span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* keep compiler happy */</span></span>
+<a name="line88">088: </a><span style="color: #FF0000">}</span>
+<a name="line89">089: </a>
+<a name="line90">090: </a>
+<a name="line91">091: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900"> * Master selection of decompression modules for transcoding.</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900"> * This substitutes for jdmaster.c's initialization of the full decompressor.</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line95">095: </a>
+<a name="line96">096: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000000">transdecode_master_selection</span></span> <span style="color: #990000">(</span>j_decompress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line98">098: </a><span style="color: #FF0000">{</span>
+<a name="line99">099: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This is effectively a buffered-image operation. */</span></span>
+<a name="line100">100: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>buffered_image <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>
+<a name="line101">101: </a>
+<a name="line102">102: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Entropy decoding: either Huffman or arithmetic coding. */</span></span>
+<a name="line103">103: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>arith_code<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line104">104: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_ARITH_NOTIMPL<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line105">105: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line106">106: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> D_PROGRESSIVE_SUPPORTED
+<a name="line108">108: </a>      <span style="font-weight: bold"><span style="color: #000000">jinit_phuff_decoder</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line110">110: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NOT_COMPILED<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line111">111: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line112">112: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line113">113: </a>      <span style="font-weight: bold"><span style="color: #000000">jinit_huff_decoder</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line114">114: </a>  <span style="color: #FF0000">}</span>
+<a name="line115">115: </a>
+<a name="line116">116: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Always get a full-image coefficient buffer. */</span></span>
+<a name="line117">117: </a>  <span style="font-weight: bold"><span style="color: #000000">jinit_d_coef_controller</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> TRUE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line118">118: </a>
+<a name="line119">119: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We can now tell the memory manager to allocate virtual arrays. */</span></span>
+<a name="line120">120: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>realize_virt_arrays<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line121">121: </a>
+<a name="line122">122: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize input side of decompressor to consume first scan. */</span></span>
+<a name="line123">123: </a>  <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>inputctl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>start_input_pass<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line124">124: </a>
+<a name="line125">125: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize progress monitoring. */</span></span>
+<a name="line126">126: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line127">127: </a>    <span style="color: #009900">int</span> nscans<span style="color: #990000">;</span>
+<a name="line128">128: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Estimate number of scans to set pass_limit. */</span></span>
+<a name="line129">129: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progressive_mode<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line130">130: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Arbitrarily estimate 2 interleaved DC scans + 3 AC scans/component. */</span></span>
+<a name="line131">131: </a>      nscans <span style="color: #990000">=</span> <span style="color: #993399">2</span> <span style="color: #990000">+</span> <span style="color: #993399">3</span> <span style="color: #990000">*</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line132">132: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>inputctl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>has_multiple_scans<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line133">133: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* For a nonprogressive multiscan file, estimate 1 scan per component. */</span></span>
+<a name="line134">134: </a>      nscans <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>num_components<span style="color: #990000">;</span>
+<a name="line135">135: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line136">136: </a>      nscans <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line137">137: </a>    <span style="color: #FF0000">}</span>
+<a name="line138">138: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_counter <span style="color: #990000">=</span> <span style="color: #993399">0</span>L<span style="color: #990000">;</span>
+<a name="line139">139: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pass_limit <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_iMCU_rows <span style="color: #990000">*</span> nscans<span style="color: #990000">;</span>
+<a name="line140">140: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>completed_passes <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line141">141: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>progress<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>total_passes <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line142">142: </a>  <span style="color: #FF0000">}</span>
+<a name="line143">143: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

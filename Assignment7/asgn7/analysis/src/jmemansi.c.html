@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jmemansi.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jmemansi.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1992-1996, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file provides a simple generic implementation of the system-</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * dependent portion of the JPEG memory manager.  This implementation</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * assumes that you have the ANSI-standard library routine tmpfile().</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * Also, the problem of determining the amount of memory available</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * is shoved onto the user.</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line14">014: </a>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jmemsys.h"</span>              <span style="font-style: italic"><span style="color: #9A1900">/* import the system-dependent declarations */</span></span>
+<a name="line19">019: </a>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> HAVE_STDLIB_H           <span style="font-style: italic"><span style="color: #9A1900">/* &lt;stdlib.h&gt; should declare malloc(),free() */</span></span>
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> malloc <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>size_t size<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line22">022: </a><span style="font-weight: bold"><span style="color: #0000FF">extern</span></span> <span style="color: #009900">void</span> free <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span>ptr<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line23">023: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line24">024: </a>
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> SEEK_SET                <span style="font-style: italic"><span style="color: #9A1900">/* pre-ANSI systems may not define this; */</span></span>
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> SEEK_SET  <span style="color: #993399">0</span>             <span style="font-style: italic"><span style="color: #9A1900">/* if not, assume 0 is correct */</span></span>
+<a name="line27">027: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line28">028: </a>
+<a name="line29">029: </a>
+<a name="line30">030: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900"> * Memory allocation and freeing are controlled by the regular library</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900"> * routines malloc() and free().</span></span>
+<a name="line33">033: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line36">036: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line37">037: </a><span style="color: #FF0000">{</span>
+<a name="line38">038: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line39">039: </a><span style="color: #FF0000">}</span>
+<a name="line40">040: </a>
+<a name="line41">041: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_small</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line43">043: </a><span style="color: #FF0000">{</span>
+<a name="line44">044: </a>  <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line45">045: </a><span style="color: #FF0000">}</span>
+<a name="line46">046: </a>
+<a name="line47">047: </a>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900"> * "Large" objects are treated the same as "small" ones.</span></span>
+<a name="line50">050: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: although we include FAR keywords in the routine declarations,</span></span>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900"> * this file won't actually work in 80x86 small/medium model; at least,</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> * you probably won't be able to process useful-size images in only 64KB.</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line54">054: </a>
+<a name="line55">055: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line56">056: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_get_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line57">057: </a><span style="color: #FF0000">{</span>
+<a name="line58">058: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> <span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">malloc</span></span><span style="color: #990000">(</span>sizeofobject<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line59">059: </a><span style="color: #FF0000">}</span>
+<a name="line60">060: </a>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_free_large</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> object<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span>
+<a name="line63">063: </a><span style="color: #FF0000">{</span>
+<a name="line64">064: </a>  <span style="font-weight: bold"><span style="color: #000000">free</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line65">065: </a><span style="color: #FF0000">}</span>
+<a name="line66">066: </a>
+<a name="line67">067: </a>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine computes the total memory space available for allocation.</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> * It's impossible to do this in a portable way; our current solution is</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * to make the user tell us (with a default value set at compile time).</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> * If you can actually get the available space, it's a good idea to subtract</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * a slop factor of 5% or so.</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line75">075: </a>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> DEFAULT_MAX_MEM         <span style="font-style: italic"><span style="color: #9A1900">/* so can override from makefile */</span></span>
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> DEFAULT_MAX_MEM         <span style="color: #993399">1000000</span>L <span style="font-style: italic"><span style="color: #9A1900">/* default: one megabyte */</span></span>
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line79">079: </a>
+<a name="line80">080: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line81">081: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_available</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">long</span> min_bytes_needed<span style="color: #990000">,</span>
+<a name="line82">082: </a>                    <span style="color: #009900">long</span> max_bytes_needed<span style="color: #990000">,</span> <span style="color: #009900">long</span> already_allocated<span style="color: #990000">)</span>
+<a name="line83">083: </a><span style="color: #FF0000">{</span>
+<a name="line84">084: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>max_memory_to_use <span style="color: #990000">-</span> already_allocated<span style="color: #990000">;</span>
+<a name="line85">085: </a><span style="color: #FF0000">}</span>
+<a name="line86">086: </a>
+<a name="line87">087: </a>
+<a name="line88">088: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line89">089: </a><span style="font-style: italic"><span style="color: #9A1900"> * Backing store (temporary file) management.</span></span>
+<a name="line90">090: </a><span style="font-style: italic"><span style="color: #9A1900"> * Backing store objects are only used when the value returned by</span></span>
+<a name="line91">091: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_mem_available is less than the total space needed.  You can dispense</span></span>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900"> * with these routines if you have plenty of virtual memory; see jmemnobs.c.</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line94">094: </a>
+<a name="line95">095: </a>
+<a name="line96">096: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000000">read_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line98">098: </a>                    <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line99">099: </a>                    <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line100">100: </a><span style="color: #FF0000">{</span>
+<a name="line101">101: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">fseek</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file<span style="color: #990000">,</span> file_offset<span style="color: #990000">,</span> SEEK_SET<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line102">102: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_SEEK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line103">103: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">JFREAD</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file<span style="color: #990000">,</span> buffer_address<span style="color: #990000">,</span> byte_count<span style="color: #990000">)</span>
+<a name="line104">104: </a>      <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> byte_count<span style="color: #990000">)</span>
+<a name="line105">105: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_READ<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line106">106: </a><span style="color: #FF0000">}</span>
+<a name="line107">107: </a>
+<a name="line108">108: </a>
+<a name="line109">109: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #000000">write_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line111">111: </a>                     <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line112">112: </a>                     <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span>
+<a name="line113">113: </a><span style="color: #FF0000">{</span>
+<a name="line114">114: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">fseek</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file<span style="color: #990000">,</span> file_offset<span style="color: #990000">,</span> SEEK_SET<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line115">115: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_SEEK<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line116">116: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #000000">JFWRITE</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file<span style="color: #990000">,</span> buffer_address<span style="color: #990000">,</span> byte_count<span style="color: #990000">)</span>
+<a name="line117">117: </a>      <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> byte_count<span style="color: #990000">)</span>
+<a name="line118">118: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_WRITE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line119">119: </a><span style="color: #FF0000">}</span>
+<a name="line120">120: </a>
+<a name="line121">121: </a>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line123">123: </a><span style="font-weight: bold"><span style="color: #000000">close_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">)</span>
+<a name="line124">124: </a><span style="color: #FF0000">{</span>
+<a name="line125">125: </a>  <span style="font-weight: bold"><span style="color: #000000">fclose</span></span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line126">126: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Since this implementation uses tmpfile() to create the file,</span></span>
+<a name="line127">127: </a><span style="font-style: italic"><span style="color: #9A1900">   * no explicit file deletion is needed.</span></span>
+<a name="line128">128: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line129">129: </a><span style="color: #FF0000">}</span>
+<a name="line130">130: </a>
+<a name="line131">131: </a>
+<a name="line132">132: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line133">133: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initial opening of a backing-store object.</span></span>
+<a name="line134">134: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line135">135: </a><span style="font-style: italic"><span style="color: #9A1900"> * This version uses tmpfile(), which constructs a suitable file name</span></span>
+<a name="line136">136: </a><span style="font-style: italic"><span style="color: #9A1900"> * behind the scenes.  We don't have to use info-&gt;temp_name[] at all;</span></span>
+<a name="line137">137: </a><span style="font-style: italic"><span style="color: #9A1900"> * indeed, we can't even find out the actual name of the temp file.</span></span>
+<a name="line138">138: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line139">139: </a>
+<a name="line140">140: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line141">141: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_open_backing_store</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line142">142: </a>                         <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span>
+<a name="line143">143: </a><span style="color: #FF0000">{</span>
+<a name="line144">144: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>temp_file <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">tmpfile</span></span><span style="color: #990000">(</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line145">145: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXITS</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_TFILE_CREATE<span style="color: #990000">,</span> <span style="color: #FF0000">""</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line146">146: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>read_backing_store <span style="color: #990000">=</span> read_backing_store<span style="color: #990000">;</span>
+<a name="line147">147: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>write_backing_store <span style="color: #990000">=</span> write_backing_store<span style="color: #990000">;</span>
+<a name="line148">148: </a>  info<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>close_backing_store <span style="color: #990000">=</span> close_backing_store<span style="color: #990000">;</span>
+<a name="line149">149: </a><span style="color: #FF0000">}</span>
+<a name="line150">150: </a>
+<a name="line151">151: </a>
+<a name="line152">152: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line153">153: </a><span style="font-style: italic"><span style="color: #9A1900"> * These routines take care of any system-dependent initialization and</span></span>
+<a name="line154">154: </a><span style="font-style: italic"><span style="color: #9A1900"> * cleanup required.</span></span>
+<a name="line155">155: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line156">156: </a>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span>
+<a name="line158">158: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_init</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line159">159: </a><span style="color: #FF0000">{</span>
+<a name="line160">160: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> DEFAULT_MAX_MEM<span style="color: #990000">;</span>       <span style="font-style: italic"><span style="color: #9A1900">/* default for max_memory_to_use */</span></span>
+<a name="line161">161: </a><span style="color: #FF0000">}</span>
+<a name="line162">162: </a>
+<a name="line163">163: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line164">164: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_mem_term</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line165">165: </a><span style="color: #FF0000">{</span>
+<a name="line166">166: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* no work */</span></span>
+<a name="line167">167: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

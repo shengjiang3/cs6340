@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>
+    Cooperative Bug Isolation Report: branches predicates
+  </title><link rel="stylesheet" type="text/css" href="view.css"/><script type="text/javascript" src="bug-o-meter.js"><!-- --></script></head><body><table class="views"><tr><th>Scheme:</th><td>
+
+    
+    [branches]
+  
+
+    
+    [<a href="returns_nf_none.html">returns</a>]
+  
+
+    
+    [<a href="scalar-pairs_nf_none.html">scalar-pairs</a>]
+  
+
+    
+    [<a href="all_nf_none.html">all</a>]
+  </td></tr><tr><th>Sorted by:</th><td>
+
+    
+    [<a href="branches_lb_none.html">Lower Bound of Confidence Interval</a>]
+  
+
+    
+    [<a href="branches_is_none.html">Increase Score</a>]
+  
+
+    
+    [<a href="branches_fs_none.html">Fail Score</a>]
+  
+
+    
+    [True in # Failed Runs]
+  
+
+    
+    [<a href="branches_hl_none.html">Harmonic Mean (log)</a>]
+  
+
+    
+    [<a href="branches_hs_none.html">Harmonic Mean (sqrt)</a>]
+  </td></tr><tr><th>Go to:</th><td>
+    [<a href="summary.html">report summary</a>]
+    [<a href="http://www.cs.wisc.edu/cbi/">CBI web page</a>]
+  </td></tr></table><table class="predictors"><thead><tr><th>Thermometer</th><th>Predicate</th><th>Function</th><th>File:Line</th></tr></thead><tbody><tr title="rank: 1, pred: 21"><td class="meter"><table class="meter" width="164.6524px"><tr><td class="f1" style="width: 22.5%"/><td class="f2" style="width: 6.26327%"/><td class="f3" style="width: 4.94463%"/><td class="f4" style="width: 66.2921%"/></tr></table><div class="details"><p>Increase: 11%, Lower Bound: 6%<br/>Fail: 34%, Context: 23%</p><hr/><p>true in 354 successes and 180 failures<br/>observed in 620 successes and 180 failures</p></div></td><td>(int )info-&gt;transform == 0 is FALSE
+  </td><td>jtransform_request_workspace()</td><td><a href="src/transupp.c.html#line585">transupp.c:585</a></td></tr><tr title="rank: 2, pred: 26"><td class="meter"><table class="meter" width="160.36599999999999px"><tr><td class="f1" style="width: 22.5%"/><td class="f2" style="width: 0.699899%"/><td class="f3" style="width: 5.056200999999999%"/><td class="f4" style="width: 71.7439%"/></tr></table><div class="details"><p>Increase: 6%, Lower Bound: 1%<br/>Fail: 28%, Context: 23%</p><hr/><p>true in 325 successes and 128 failures<br/>observed in 620 successes and 180 failures</p></div></td><td>cinfo-&gt;max_v_samp_factor &gt; compptr-&gt;v_samp_factor is TRUE
+  </td><td>initial_setup()</td><td><a href="src/jcmaster.c.html#line89">jcmaster.c:89</a></td></tr><tr title="rank: 3, pred: 23"><td class="meter"><table class="meter" width="129.3928px"><tr><td class="f1" style="width: 29.8246%"/><td class="f2" style="width: 49.1134%"/><td class="f3" style="width: 7.293899999999997%"/><td class="f4" style="width: 13.768100000000006%"/></tr></table><div class="details"><p>Increase: 56%, Lower Bound: 49%<br/>Fail: 86%, Context: 30%</p><hr/><p>true in 19 successes and 119 failures<br/>observed in 280 successes and 119 failures</p></div></td><td>(int )info-&gt;transform == 4 is TRUE
+  </td><td>jtransform_request_workspace()</td><td><a href="src/transupp.c.html#line592">transupp.c:592</a></td></tr><tr title="rank: 4, pred: 6"><td class="meter"><table class="meter" width="129.3928px"><tr><td class="f1" style="width: 42.198600000000006%"/><td class="f2" style="width: 35.8922%"/><td class="f3" style="width: 8.141099999999991%"/><td class="f4" style="width: 13.768100000000006%"/></tr></table><div class="details"><p>Increase: 44%, Lower Bound: 36%<br/>Fail: 86%, Context: 42%</p><hr/><p>true in 19 successes and 119 failures<br/>observed in 163 successes and 119 failures</p></div></td><td>tmp___10 is TRUE
+  </td><td>parse_switches()</td><td><a href="src/jpegtran.c.html#line296">jpegtran.c:296</a></td></tr><tr title="rank: 5, pred: 5"><td class="meter"><table class="meter" width="148.01500000000001px"><tr><td class="f1" style="width: 29.166700000000002%"/><td class="f2" style="width: 5.7738%"/><td class="f3" style="width: 7.258100000000001%"/><td class="f4" style="width: 57.8014%"/></tr></table><div class="details"><p>Increase: 13%, Lower Bound: 6%<br/>Fail: 42%, Context: 29%</p><hr/><p>true in 163 successes and 119 failures<br/>observed in 289 successes and 119 failures</p></div></td><td>tmp___11 is FALSE
+  </td><td>parse_switches()</td><td><a href="src/jpegtran.c.html#line292">jpegtran.c:292</a></td></tr><tr title="rank: 6, pred: 24"><td class="meter"><table class="meter" width="157.0582px"><tr><td class="f1" style="width: 22.5%"/><td class="f2" style="width: 1.98372%"/><td class="f3" style="width: 5.34088%"/><td class="f4" style="width: 70.1754%"/></tr></table><div class="details"><p>Increase: 7%, Lower Bound: 2%<br/>Fail: 30%, Context: 23%</p><hr/><p>true in 280 successes and 119 failures<br/>observed in 620 successes and 180 failures</p></div></td><td>(unsigned int )info-&gt;workspace_coef_arrays != (unsigned int )((void *)0) is TRUE
+  </td><td>jtransform_adjust_parameters()</td><td><a href="src/transupp.c.html#line806">transupp.c:806</a></td></tr><tr title="rank: 7, pred: 4"><td class="meter"><table class="meter" width="157.6396px"><tr><td class="f1" style="width: 21.9153%"/><td class="f2" style="width: 1.6336199999999999%"/><td class="f3" style="width: 5.617780000000002%"/><td class="f4" style="width: 70.8333%"/></tr></table><div class="details"><p>Increase: 7%, Lower Bound: 2%<br/>Fail: 29%, Context: 22%</p><hr/><p>true in 289 successes and 119 failures<br/>observed in 424 successes and 119 failures</p></div></td><td>tmp___13 is FALSE
+  </td><td>parse_switches()</td><td><a href="src/jpegtran.c.html#line266">jpegtran.c:266</a></td></tr><tr title="rank: 8, pred: 22"><td class="meter"><table class="meter" width="108.1198px"><tr><td class="f1" style="width: 39.1304%"/><td class="f2" style="width: 56.409600000000005%"/><td class="f3" style="width: 4.459999999999997%"/><td class="f4" style="width: 0%"/></tr></table><div class="details"><p>Increase: 61%, Lower Bound: 56%<br/>Fail: 100%, Context: 39%</p><hr/><p>true in 0 successes and 61 failures<br/>observed in 280 successes and 180 failures</p></div></td><td>(int )info-&gt;transform == 2 is TRUE
+  </td><td>jtransform_request_workspace()</td><td><a href="src/transupp.c.html#line585">transupp.c:585</a></td></tr><tr title="rank: 9, pred: 3"><td class="meter"><table class="meter" width="108.1198px"><tr><td class="f1" style="width: 45.185199999999995%"/><td class="f2" style="width: 46.4195%"/><td class="f3" style="width: 8.395299999999995%"/><td class="f4" style="width: 0%"/></tr></table><div class="details"><p>Increase: 55%, Lower Bound: 46%<br/>Fail: 100%, Context: 45%</p><hr/><p>true in 0 successes and 61 failures<br/>observed in 74 successes and 61 failures</p></div></td><td>tmp___3 is FALSE
+  </td><td>parse_switches()</td><td><a href="src/jpegtran.c.html#line192">jpegtran.c:192</a></td></tr><tr title="rank: 10, pred: 2"><td class="meter"><table class="meter" width="128.8198px"><tr><td class="f1" style="width: 22.5%"/><td class="f2" style="width: 13.805200000000001%"/><td class="f3" style="width: 8.879999999999994%"/><td class="f4" style="width: 54.814800000000005%"/></tr></table><div class="details"><p>Increase: 23%, Lower Bound: 14%<br/>Fail: 45%, Context: 23%</p><hr/><p>true in 74 successes and 61 failures<br/>observed in 620 successes and 180 failures</p></div></td><td>tmp___22 is TRUE
+  </td><td>parse_switches()</td><td><a href="src/jpegtran.c.html#line188">jpegtran.c:188</a></td></tr><tr title="rank: 11, pred: 28"><td class="meter"><table class="meter" width="69.76780000000001px"><tr><td class="f1" style="width: 22.4464%"/><td class="f2" style="width: 8.61134%"/><td class="f3" style="width: 26.085159999999995%"/><td class="f4" style="width: 42.8571%"/></tr></table><div class="details"><p>Increase: 35%, Lower Bound: 9%<br/>Fail: 57%, Context: 22%</p><hr/><p>true in 6 successes and 8 failures<br/>observed in 615 successes and 178 failures</p></div></td><td>bits_left &lt; 8 is TRUE
+  </td><td>decode_mcu()</td><td><a href="src/jdhuff.c.html#line572">jdhuff.c:572</a></td></tr></tbody></table></body></html>

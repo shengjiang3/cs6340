@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jinclude.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">01: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">02: </a><span style="font-style: italic"><span style="color: #9A1900"> * jinclude.h</span></span>
+<a name="line3">03: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">04: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1991-1994, Thomas G. Lane.</span></span>
+<a name="line5">05: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">06: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">07: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">08: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file exists to provide a single place to fix any problems with</span></span>
+<a name="line9">09: </a><span style="font-style: italic"><span style="color: #9A1900"> * including the wrong system include files.  (Common problems are taken</span></span>
+<a name="line10">10: </a><span style="font-style: italic"><span style="color: #9A1900"> * care of by the standard jconfig symbols, but on really weird systems</span></span>
+<a name="line11">11: </a><span style="font-style: italic"><span style="color: #9A1900"> * you may have to edit this file.)</span></span>
+<a name="line12">12: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line13">13: </a><span style="font-style: italic"><span style="color: #9A1900"> * NOTE: this file is NOT intended to be included by applications using the</span></span>
+<a name="line14">14: </a><span style="font-style: italic"><span style="color: #9A1900"> * JPEG library.  Most applications need only include jpeglib.h.</span></span>
+<a name="line15">15: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line16">16: </a>
+<a name="line17">17: </a>
+<a name="line18">18: </a><span style="font-style: italic"><span style="color: #9A1900">/* Include auto-config file to find out which system include files we need. */</span></span>
+<a name="line19">19: </a>
+<a name="line20">20: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jconfig.h"</span>              <span style="font-style: italic"><span style="color: #9A1900">/* auto configuration options */</span></span>
+<a name="line21">21: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JCONFIG_INCLUDED        <span style="font-style: italic"><span style="color: #9A1900">/* so that jpeglib.h doesn't do it again */</span></span>
+<a name="line22">22: </a>
+<a name="line23">23: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line24">24: </a><span style="font-style: italic"><span style="color: #9A1900"> * We need the NULL macro and size_t typedef.</span></span>
+<a name="line25">25: </a><span style="font-style: italic"><span style="color: #9A1900"> * On an ANSI-conforming system it is sufficient to include &lt;stddef.h&gt;.</span></span>
+<a name="line26">26: </a><span style="font-style: italic"><span style="color: #9A1900"> * Otherwise, we get them from &lt;stdlib.h&gt; or &lt;stdio.h&gt;; we may have to</span></span>
+<a name="line27">27: </a><span style="font-style: italic"><span style="color: #9A1900"> * pull in &lt;sys/types.h&gt; as well.</span></span>
+<a name="line28">28: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that the core JPEG library does not require &lt;stdio.h&gt;;</span></span>
+<a name="line29">29: </a><span style="font-style: italic"><span style="color: #9A1900"> * only the default error handler and data source/destination modules do.</span></span>
+<a name="line30">30: </a><span style="font-style: italic"><span style="color: #9A1900"> * But we must pull it in because of the references to FILE in jpeglib.h.</span></span>
+<a name="line31">31: </a><span style="font-style: italic"><span style="color: #9A1900"> * You can remove those references if you want to compile without &lt;stdio.h&gt;.</span></span>
+<a name="line32">32: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line33">33: </a>
+<a name="line34">34: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDDEF_H
+<a name="line35">35: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stddef.h&gt;</span>
+<a name="line36">36: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line37">37: </a>
+<a name="line38">38: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> HAVE_STDLIB_H
+<a name="line39">39: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stdlib.h&gt;</span>
+<a name="line40">40: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line41">41: </a>
+<a name="line42">42: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SYS_TYPES_H
+<a name="line43">43: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;sys/types.h&gt;</span>
+<a name="line44">44: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line45">45: </a>
+<a name="line46">46: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;stdio.h&gt;</span>
+<a name="line47">47: </a>
+<a name="line48">48: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line49">49: </a><span style="font-style: italic"><span style="color: #9A1900"> * We need memory copying and zeroing functions, plus strncpy().</span></span>
+<a name="line50">50: </a><span style="font-style: italic"><span style="color: #9A1900"> * ANSI and System V implementations declare these in &lt;string.h&gt;.</span></span>
+<a name="line51">51: </a><span style="font-style: italic"><span style="color: #9A1900"> * BSD doesn't have the mem() functions, but it does have bcopy()/bzero().</span></span>
+<a name="line52">52: </a><span style="font-style: italic"><span style="color: #9A1900"> * Some systems may declare memset and memcpy in &lt;memory.h&gt;.</span></span>
+<a name="line53">53: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line54">54: </a><span style="font-style: italic"><span style="color: #9A1900"> * NOTE: we assume the size parameters to these functions are of type size_t.</span></span>
+<a name="line55">55: </a><span style="font-style: italic"><span style="color: #9A1900"> * Change the casts in these macros if not!</span></span>
+<a name="line56">56: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line57">57: </a>
+<a name="line58">58: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_BSD_STRINGS
+<a name="line59">59: </a>
+<a name="line60">60: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;strings.h&gt;</span>
+<a name="line61">61: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>target<span style="color: #990000">,</span>size<span style="color: #990000">)</span>    <span style="font-weight: bold"><span style="color: #000000">bzero</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>target<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span><span style="color: #990000">(</span>size<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line62">62: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MEMCOPY</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">,</span>src<span style="color: #990000">,</span>size<span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">bcopy</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>src<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>dest<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span><span style="color: #990000">(</span>size<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line63">63: </a>
+<a name="line64">64: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* not BSD, assume ANSI/SysV string lib */</span></span>
+<a name="line65">65: </a>
+<a name="line66">66: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;string.h&gt;</span>
+<a name="line67">67: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>target<span style="color: #990000">,</span>size<span style="color: #990000">)</span>    <span style="font-weight: bold"><span style="color: #000000">memset</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>target<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span><span style="color: #990000">(</span>size<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line68">68: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">MEMCOPY</span></span><span style="color: #990000">(</span>dest<span style="color: #990000">,</span>src<span style="color: #990000">,</span>size<span style="color: #990000">)</span>  <span style="font-weight: bold"><span style="color: #000000">memcpy</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>dest<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span><span style="color: #990000">(</span>src<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span><span style="color: #990000">(</span>size<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line69">69: </a>
+<a name="line70">70: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line71">71: </a>
+<a name="line72">72: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line73">73: </a><span style="font-style: italic"><span style="color: #9A1900"> * In ANSI C, and indeed any rational implementation, size_t is also the</span></span>
+<a name="line74">74: </a><span style="font-style: italic"><span style="color: #9A1900"> * type returned by sizeof().  However, it seems there are some irrational</span></span>
+<a name="line75">75: </a><span style="font-style: italic"><span style="color: #9A1900"> * implementations out there, in which sizeof() returns an int even though</span></span>
+<a name="line76">76: </a><span style="font-style: italic"><span style="color: #9A1900"> * size_t is defined as long or unsigned long.  To ensure consistent results</span></span>
+<a name="line77">77: </a><span style="font-style: italic"><span style="color: #9A1900"> * we always use this SIZEOF() macro in place of using sizeof() directly.</span></span>
+<a name="line78">78: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line79">79: </a>
+<a name="line80">80: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span>  <span style="color: #990000">(</span><span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #0000FF">sizeof</span></span><span style="color: #990000">(</span>object<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line81">81: </a>
+<a name="line82">82: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line83">83: </a><span style="font-style: italic"><span style="color: #9A1900"> * The modules that use fread() and fwrite() always invoke them through</span></span>
+<a name="line84">84: </a><span style="font-style: italic"><span style="color: #9A1900"> * these macros.  On some systems you may need to twiddle the argument casts.</span></span>
+<a name="line85">85: </a><span style="font-style: italic"><span style="color: #9A1900"> * CAUTION: argument order is different from underlying functions!</span></span>
+<a name="line86">86: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line87">87: </a>
+<a name="line88">88: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JFREAD</span></span><span style="color: #990000">(</span>file<span style="color: #990000">,</span>buf<span style="color: #990000">,</span>sizeofbuf<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line89">89: </a>  <span style="color: #990000">(</span><span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">fread</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>buf<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="color: #990000">(</span>sizeofbuf<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>file<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line90">90: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JFWRITE</span></span><span style="color: #990000">(</span>file<span style="color: #990000">,</span>buf<span style="color: #990000">,</span>sizeofbuf<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line91">91: </a>  <span style="color: #990000">(</span><span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="font-weight: bold"><span style="color: #000000">fwrite</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">const</span></span> <span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>buf<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="color: #993399">1</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>size_t<span style="color: #990000">)</span> <span style="color: #990000">(</span>sizeofbuf<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #990000">(</span>file<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+</tt>
+</pre>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jmemsys.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jmemsys.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1992-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This include file defines the interface between the system-independent</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * and system-dependent portions of the JPEG memory manager.  No other</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * modules need include it.  (The system-independent portion is jmemmgr.c;</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * there are several different versions of the system-dependent portion.)</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file works as-is for the system-dependent memory managers supplied</span></span>
+<a name="line14">014: </a><span style="font-style: italic"><span style="color: #9A1900"> * in the IJG distribution.  You may need to modify it if you write a</span></span>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900"> * custom memory manager.  If system-dependent changes are needed in</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * this file, the best method is to #ifdef them based on a configuration</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * symbol supplied in jconfig.h, as we have done with USE_MSDOS_MEMMGR</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * and USE_MAC_MEMMGR.</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line20">020: </a>
+<a name="line21">021: </a>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900">/* Short forms of external names for systems with brain-damaged linkers. */</span></span>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> NEED_SHORT_EXTERNAL_NAMES
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_get_small          jGetSmall
+<a name="line26">026: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_free_small         jFreeSmall
+<a name="line27">027: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_get_large          jGetLarge
+<a name="line28">028: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_free_large         jFreeLarge
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_mem_available      jMemAvail
+<a name="line30">030: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_open_backing_store jOpenBackStore
+<a name="line31">031: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_mem_init           jMemInit
+<a name="line32">032: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> jpeg_mem_term           jMemTerm
+<a name="line33">033: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* NEED_SHORT_EXTERNAL_NAMES */</span></span>
+<a name="line34">034: </a>
+<a name="line35">035: </a>
+<a name="line36">036: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line37">037: </a><span style="font-style: italic"><span style="color: #9A1900"> * These two functions are used to allocate and release small chunks of</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900"> * memory.  (Typically the total amount requested through jpeg_get_small is</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900"> * no more than 20K or so; this will be requested in chunks of a few K each.)</span></span>
+<a name="line40">040: </a><span style="font-style: italic"><span style="color: #9A1900"> * Behavior should be the same as for the standard library functions malloc</span></span>
+<a name="line41">041: </a><span style="font-style: italic"><span style="color: #9A1900"> * and free; in particular, jpeg_get_small must return NULL on failure.</span></span>
+<a name="line42">042: </a><span style="font-style: italic"><span style="color: #9A1900"> * On most systems, these ARE malloc and free.  jpeg_free_small is passed the</span></span>
+<a name="line43">043: </a><span style="font-style: italic"><span style="color: #9A1900"> * size of the object being freed, just in case it's needed.</span></span>
+<a name="line44">044: </a><span style="font-style: italic"><span style="color: #9A1900"> * On an 80x86 machine using small-data memory model, these manage near heap.</span></span>
+<a name="line45">045: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line46">046: </a>
+<a name="line47">047: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> <span style="color: #990000">*</span><span style="color: #990000">)</span> jpeg_get_small <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> size_t sizeofobject<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line48">048: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_free_small <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> <span style="color: #990000">*</span> object<span style="color: #990000">,</span>
+<a name="line49">049: </a>                                  size_t sizeofobject<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line50">050: </a>
+<a name="line51">051: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line52">052: </a><span style="font-style: italic"><span style="color: #9A1900"> * These two functions are used to allocate and release large chunks of</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900"> * memory (up to the total free space designated by jpeg_mem_available).</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900"> * The interface is the same as above, except that on an 80x86 machine,</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900"> * far pointers are used.  On most other machines these are identical to</span></span>
+<a name="line56">056: </a><span style="font-style: italic"><span style="color: #9A1900"> * the jpeg_get/free_small routines; but we keep them separate anyway,</span></span>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900"> * in case a different allocation strategy is desirable for large chunks.</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line59">059: </a>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span> FAR <span style="color: #990000">*</span><span style="color: #990000">)</span> jpeg_get_large <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line61">061: </a>                                       size_t sizeofobject<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_free_large <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span> <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> object<span style="color: #990000">,</span>
+<a name="line63">063: </a>                                  size_t sizeofobject<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line64">064: </a>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * The macro MAX_ALLOC_CHUNK designates the maximum number of bytes that may</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * be requested in a single call to jpeg_get_large (and jpeg_get_small for that</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> * matter, but that case should never come into play).  This macro is needed</span></span>
+<a name="line69">069: </a><span style="font-style: italic"><span style="color: #9A1900"> * to model the 64Kb-segment-size limit of far addressing on 80x86 machines.</span></span>
+<a name="line70">070: </a><span style="font-style: italic"><span style="color: #9A1900"> * On those machines, we expect that jconfig.h will provide a proper value.</span></span>
+<a name="line71">071: </a><span style="font-style: italic"><span style="color: #9A1900"> * On machines with 32-bit flat address spaces, any large constant may be used.</span></span>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: jmemmgr.c expects that MAX_ALLOC_CHUNK will be representable as type</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * size_t and will be a multiple of sizeof(align_type).</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line76">076: </a>
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> MAX_ALLOC_CHUNK         <span style="font-style: italic"><span style="color: #9A1900">/* may be overridden in jconfig.h */</span></span>
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAX_ALLOC_CHUNK  <span style="color: #993399">1000000000</span>L
+<a name="line79">079: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line80">080: </a>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> * This routine computes the total space still available for allocation by</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_get_large.  If more space than this is needed, backing store will be</span></span>
+<a name="line84">084: </a><span style="font-style: italic"><span style="color: #9A1900"> * used.  NOTE: any memory already allocated must not be counted.</span></span>
+<a name="line85">085: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line86">086: </a><span style="font-style: italic"><span style="color: #9A1900"> * There is a minimum space requirement, corresponding to the minimum</span></span>
+<a name="line87">087: </a><span style="font-style: italic"><span style="color: #9A1900"> * feasible buffer sizes; jmemmgr.c will request that much space even if</span></span>
+<a name="line88">088: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_mem_available returns zero.  The maximum space needed, enough to hold</span></span>
+<a name="line89">089: </a><span style="font-style: italic"><span style="color: #9A1900"> * all working storage in memory, is also passed in case it is useful.</span></span>
+<a name="line90">090: </a><span style="font-style: italic"><span style="color: #9A1900"> * Finally, the total space already allocated is passed.  If no better</span></span>
+<a name="line91">091: </a><span style="font-style: italic"><span style="color: #9A1900"> * method is available, cinfo-&gt;mem-&gt;max_memory_to_use - already_allocated</span></span>
+<a name="line92">092: </a><span style="font-style: italic"><span style="color: #9A1900"> * is often a suitable calculation.</span></span>
+<a name="line93">093: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line94">094: </a><span style="font-style: italic"><span style="color: #9A1900"> * It is OK for jpeg_mem_available to underestimate the space available</span></span>
+<a name="line95">095: </a><span style="font-style: italic"><span style="color: #9A1900"> * (that'll just lead to more backing-store access than is really necessary).</span></span>
+<a name="line96">096: </a><span style="font-style: italic"><span style="color: #9A1900"> * However, an overestimate will lead to failure.  Hence it's wise to subtract</span></span>
+<a name="line97">097: </a><span style="font-style: italic"><span style="color: #9A1900"> * a slop factor from the true available space.  5% should be enough.</span></span>
+<a name="line98">098: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line99">099: </a><span style="font-style: italic"><span style="color: #9A1900"> * On machines with lots of virtual memory, any large constant may be returned.</span></span>
+<a name="line100">100: </a><span style="font-style: italic"><span style="color: #9A1900"> * Conversely, zero may be returned to always use the minimum amount of memory.</span></span>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line102">102: </a>
+<a name="line103">103: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> jpeg_mem_available <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line104">104: </a>                                     <span style="color: #009900">long</span> min_bytes_needed<span style="color: #990000">,</span>
+<a name="line105">105: </a>                                     <span style="color: #009900">long</span> max_bytes_needed<span style="color: #990000">,</span>
+<a name="line106">106: </a>                                     <span style="color: #009900">long</span> already_allocated<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line107">107: </a>
+<a name="line108">108: </a>
+<a name="line109">109: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line110">110: </a><span style="font-style: italic"><span style="color: #9A1900"> * This structure holds whatever state is needed to access a single</span></span>
+<a name="line111">111: </a><span style="font-style: italic"><span style="color: #9A1900"> * backing-store object.  The read/write/close method pointers are called</span></span>
+<a name="line112">112: </a><span style="font-style: italic"><span style="color: #9A1900"> * by jmemmgr.c to manipulate the backing-store object; all other fields</span></span>
+<a name="line113">113: </a><span style="font-style: italic"><span style="color: #9A1900"> * are private to the system-dependent backing store routines.</span></span>
+<a name="line114">114: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line115">115: </a>
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> TEMP_NAME_LENGTH   <span style="color: #993399">64</span>   <span style="font-style: italic"><span style="color: #9A1900">/* max length of a temporary file's name */</span></span>
+<a name="line117">117: </a>
+<a name="line118">118: </a>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_MSDOS_MEMMGR         <span style="font-style: italic"><span style="color: #9A1900">/* DOS-specific junk */</span></span>
+<a name="line120">120: </a>
+<a name="line121">121: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> XMSH<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* type of extended-memory handles */</span></span>
+<a name="line122">122: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="color: #009900">unsigned</span> <span style="color: #009900">short</span> EMSH<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* type of expanded-memory handles */</span></span>
+<a name="line123">123: </a>
+<a name="line124">124: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">union</span></span> <span style="color: #FF0000">{</span>
+<a name="line125">125: </a>  <span style="color: #009900">short</span> file_handle<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* DOS file handle if it's a temp file */</span></span>
+<a name="line126">126: </a>  XMSH xms_handle<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* handle if it's a chunk of XMS */</span></span>
+<a name="line127">127: </a>  EMSH ems_handle<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* handle if it's a chunk of EMS */</span></span>
+<a name="line128">128: </a><span style="color: #FF0000">}</span> handle_union<span style="color: #990000">;</span>
+<a name="line129">129: </a>
+<a name="line130">130: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* USE_MSDOS_MEMMGR */</span></span>
+<a name="line131">131: </a>
+<a name="line132">132: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_MAC_MEMMGR           <span style="font-style: italic"><span style="color: #9A1900">/* Mac-specific junk */</span></span>
+<a name="line133">133: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">&lt;Files.h&gt;</span>
+<a name="line134">134: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* USE_MAC_MEMMGR */</span></span>
+<a name="line135">135: </a>
+<a name="line136">136: </a>
+<a name="line137">137: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> backing_store_struct <span style="color: #990000">*</span> backing_store_ptr<span style="color: #990000">;</span>
+<a name="line138">138: </a>
+<a name="line139">139: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> backing_store_struct <span style="color: #FF0000">{</span>
+<a name="line140">140: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Methods for reading/writing/closing this backing-store object */</span></span>
+<a name="line141">141: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> read_backing_store<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line142">142: </a>                                     backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line143">143: </a>                                     <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line144">144: </a>                                     <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line145">145: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> write_backing_store<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line146">146: </a>                                      backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line147">147: </a>                                      <span style="color: #009900">void</span> FAR <span style="color: #990000">*</span> buffer_address<span style="color: #990000">,</span>
+<a name="line148">148: </a>                                      <span style="color: #009900">long</span> file_offset<span style="color: #990000">,</span> <span style="color: #009900">long</span> byte_count<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line149">149: </a>  <span style="font-weight: bold"><span style="color: #000000">JMETHOD</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">,</span> close_backing_store<span style="color: #990000">,</span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line150">150: </a>                                      backing_store_ptr info<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line151">151: </a>
+<a name="line152">152: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Private fields for system-dependent backing-store management */</span></span>
+<a name="line153">153: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_MSDOS_MEMMGR
+<a name="line154">154: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* For the MS-DOS manager (jmemdos.c), we need: */</span></span>
+<a name="line155">155: </a>  handle_union handle<span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* reference to backing-store storage object */</span></span>
+<a name="line156">156: </a>  <span style="color: #009900">char</span> temp_name<span style="color: #990000">[</span>TEMP_NAME_LENGTH<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* name if it's a file */</span></span>
+<a name="line157">157: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line158">158: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> USE_MAC_MEMMGR
+<a name="line159">159: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* For the Mac manager (jmemmac.c), we need: */</span></span>
+<a name="line160">160: </a>  <span style="color: #009900">short</span> temp_file<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* file reference number to temp file */</span></span>
+<a name="line161">161: </a>  FSSpec tempSpec<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* the FSSpec for the temp file */</span></span>
+<a name="line162">162: </a>  <span style="color: #009900">char</span> temp_name<span style="color: #990000">[</span>TEMP_NAME_LENGTH<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* name if it's a file */</span></span>
+<a name="line163">163: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line164">164: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* For a typical implementation with temp files, we need: */</span></span>
+<a name="line165">165: </a>  FILE <span style="color: #990000">*</span> temp_file<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* stdio reference to temp file */</span></span>
+<a name="line166">166: </a>  <span style="color: #009900">char</span> temp_name<span style="color: #990000">[</span>TEMP_NAME_LENGTH<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* name of temp file */</span></span>
+<a name="line167">167: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line168">168: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line169">169: </a><span style="color: #FF0000">}</span> backing_store_info<span style="color: #990000">;</span>
+<a name="line170">170: </a>
+<a name="line171">171: </a>
+<a name="line172">172: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line173">173: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initial opening of a backing-store object.  This must fill in the</span></span>
+<a name="line174">174: </a><span style="font-style: italic"><span style="color: #9A1900"> * read/write/close pointers in the object.  The read/write routines</span></span>
+<a name="line175">175: </a><span style="font-style: italic"><span style="color: #9A1900"> * may take an error exit if the specified maximum file size is exceeded.</span></span>
+<a name="line176">176: </a><span style="font-style: italic"><span style="color: #9A1900"> * (If jpeg_mem_available always returns a large value, this routine can</span></span>
+<a name="line177">177: </a><span style="font-style: italic"><span style="color: #9A1900"> * just take an error exit.)</span></span>
+<a name="line178">178: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line179">179: </a>
+<a name="line180">180: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_open_backing_store <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">,</span>
+<a name="line181">181: </a>                                          backing_store_ptr info<span style="color: #990000">,</span>
+<a name="line182">182: </a>                                          <span style="color: #009900">long</span> total_bytes_needed<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line183">183: </a>
+<a name="line184">184: </a>
+<a name="line185">185: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line186">186: </a><span style="font-style: italic"><span style="color: #9A1900"> * These routines take care of any system-dependent initialization and</span></span>
+<a name="line187">187: </a><span style="font-style: italic"><span style="color: #9A1900"> * cleanup required.  jpeg_mem_init will be called before anything is</span></span>
+<a name="line188">188: </a><span style="font-style: italic"><span style="color: #9A1900"> * allocated (and, therefore, nothing in cinfo is of use except the error</span></span>
+<a name="line189">189: </a><span style="font-style: italic"><span style="color: #9A1900"> * manager pointer).  It should return a suitable default value for</span></span>
+<a name="line190">190: </a><span style="font-style: italic"><span style="color: #9A1900"> * max_memory_to_use; this may subsequently be overridden by the surrounding</span></span>
+<a name="line191">191: </a><span style="font-style: italic"><span style="color: #9A1900"> * application.  (Note that max_memory_to_use is only important if</span></span>
+<a name="line192">192: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_mem_available chooses to consult it ... no one else will.)</span></span>
+<a name="line193">193: </a><span style="font-style: italic"><span style="color: #9A1900"> * jpeg_mem_term may assume that all requested memory has been freed and that</span></span>
+<a name="line194">194: </a><span style="font-style: italic"><span style="color: #9A1900"> * all opened backing-store objects have been closed.</span></span>
+<a name="line195">195: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line196">196: </a>
+<a name="line197">197: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span> jpeg_mem_init <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line198">198: </a><span style="font-weight: bold"><span style="color: #000000">EXTERN</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> jpeg_mem_term <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+</tt>
+</pre>
+</body>
+</html>

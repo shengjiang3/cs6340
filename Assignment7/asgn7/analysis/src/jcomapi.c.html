@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jcomapi.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jcomapi.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains application interface routines that are used for both</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * compression and decompression.</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line11">011: </a>
+<a name="line12">012: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line13">013: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line14">014: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line15">015: </a>
+<a name="line16">016: </a>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * Abort processing of a JPEG compression or decompression operation,</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> * but don't destroy the object itself.</span></span>
+<a name="line20">020: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line21">021: </a><span style="font-style: italic"><span style="color: #9A1900"> * For this, we merely clean up all the nonpermanent memory pools.</span></span>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note that temp files (virtual arrays) are not allowed to belong to</span></span>
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900"> * the permanent pool, so we will be able to close all temp files here.</span></span>
+<a name="line24">024: </a><span style="font-style: italic"><span style="color: #9A1900"> * Closing a data source or destination, if necessary, is the application's</span></span>
+<a name="line25">025: </a><span style="font-style: italic"><span style="color: #9A1900"> * responsibility.</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line27">027: </a>
+<a name="line28">028: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_abort</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line30">030: </a><span style="color: #FF0000">{</span>
+<a name="line31">031: </a>  <span style="color: #009900">int</span> pool<span style="color: #990000">;</span>
+<a name="line32">032: </a>
+<a name="line33">033: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Do nothing if called on a not-initialized or destroyed JPEG object. */</span></span>
+<a name="line34">034: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line35">035: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>
+<a name="line36">036: </a>
+<a name="line37">037: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Releasing pools in reverse order might help avoid fragmentation</span></span>
+<a name="line38">038: </a><span style="font-style: italic"><span style="color: #9A1900">   * with some (brain-damaged) malloc libraries.</span></span>
+<a name="line39">039: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line40">040: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>pool <span style="color: #990000">=</span> JPOOL_NUMPOOLS<span style="color: #990000">-</span><span style="color: #993399">1</span><span style="color: #990000">;</span> pool <span style="color: #990000">&gt;</span> JPOOL_PERMANENT<span style="color: #990000">;</span> pool<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line41">041: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_pool<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> pool<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line42">042: </a>  <span style="color: #FF0000">}</span>
+<a name="line43">043: </a>
+<a name="line44">044: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Reset overall state for possible reuse of object */</span></span>
+<a name="line45">045: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>is_decompressor<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line46">046: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> DSTATE_START<span style="color: #990000">;</span>
+<a name="line47">047: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Try to keep application from accessing now-deleted marker list.</span></span>
+<a name="line48">048: </a><span style="font-style: italic"><span style="color: #9A1900">     * A bit kludgy to do it here, but this is the most central place.</span></span>
+<a name="line49">049: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line50">050: </a>    <span style="color: #990000">(</span><span style="color: #990000">(</span>j_decompress_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #990000">&gt;</span>marker_list <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line51">051: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line52">052: </a>    cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> CSTATE_START<span style="color: #990000">;</span>
+<a name="line53">053: </a>  <span style="color: #FF0000">}</span>
+<a name="line54">054: </a><span style="color: #FF0000">}</span>
+<a name="line55">055: </a>
+<a name="line56">056: </a>
+<a name="line57">057: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line58">058: </a><span style="font-style: italic"><span style="color: #9A1900"> * Destruction of a JPEG object.</span></span>
+<a name="line59">059: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line60">060: </a><span style="font-style: italic"><span style="color: #9A1900"> * Everything gets deallocated except the master jpeg_compress_struct itself</span></span>
+<a name="line61">061: </a><span style="font-style: italic"><span style="color: #9A1900"> * and the error manager struct.  Both of these are supplied by the application</span></span>
+<a name="line62">062: </a><span style="font-style: italic"><span style="color: #9A1900"> * and must be freed, if necessary, by the application.  (Often they are on</span></span>
+<a name="line63">063: </a><span style="font-style: italic"><span style="color: #9A1900"> * the stack and so don't need to be freed anyway.)</span></span>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900"> * Closing a data source or destination, if necessary, is the application's</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * responsibility.</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line67">067: </a>
+<a name="line68">068: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line69">069: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_destroy</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line70">070: </a><span style="color: #FF0000">{</span>
+<a name="line71">071: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We need only tell the memory manager to release everything. */</span></span>
+<a name="line72">072: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* NB: mem pointer is NULL if memory mgr failed to initialize. */</span></span>
+<a name="line73">073: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem <span style="color: #990000">!</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line74">074: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>self_destruct<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line75">075: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* be safe if jpeg_destroy is called twice */</span></span>
+<a name="line76">076: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>global_state <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* mark it destroyed */</span></span>
+<a name="line77">077: </a><span style="color: #FF0000">}</span>
+<a name="line78">078: </a>
+<a name="line79">079: </a>
+<a name="line80">080: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line81">081: </a><span style="font-style: italic"><span style="color: #9A1900"> * Convenience routines for allocating quantization and Huffman tables.</span></span>
+<a name="line82">082: </a><span style="font-style: italic"><span style="color: #9A1900"> * (Would jutils.c be a more reasonable place to put these?)</span></span>
+<a name="line83">083: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line84">084: </a>
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span>JQUANT_TBL <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_alloc_quant_table</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line87">087: </a><span style="color: #FF0000">{</span>
+<a name="line88">088: </a>  JQUANT_TBL <span style="color: #990000">*</span>tbl<span style="color: #990000">;</span>
+<a name="line89">089: </a>
+<a name="line90">090: </a>  tbl <span style="color: #990000">=</span> <span style="color: #990000">(</span>JQUANT_TBL <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line91">091: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JPOOL_PERMANENT<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>JQUANT_TBL<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line92">092: </a>  tbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* make sure this is false in any new table */</span></span>
+<a name="line93">093: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> tbl<span style="color: #990000">;</span>
+<a name="line94">094: </a><span style="color: #FF0000">}</span>
+<a name="line95">095: </a>
+<a name="line96">096: </a>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span>JHUFF_TBL <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #000000">jpeg_alloc_huff_table</span></span> <span style="color: #990000">(</span>j_common_ptr cinfo<span style="color: #990000">)</span>
+<a name="line99">099: </a><span style="color: #FF0000">{</span>
+<a name="line100">100: </a>  JHUFF_TBL <span style="color: #990000">*</span>tbl<span style="color: #990000">;</span>
+<a name="line101">101: </a>
+<a name="line102">102: </a>  tbl <span style="color: #990000">=</span> <span style="color: #990000">(</span>JHUFF_TBL <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line103">103: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JPOOL_PERMANENT<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>JHUFF_TBL<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line104">104: </a>  tbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>sent_table <span style="color: #990000">=</span> FALSE<span style="color: #990000">;</span>      <span style="font-style: italic"><span style="color: #9A1900">/* make sure this is false in any new table */</span></span>
+<a name="line105">105: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> tbl<span style="color: #990000">;</span>
+<a name="line106">106: </a><span style="color: #FF0000">}</span>
+</tt>
+</pre>
+</body>
+</html>

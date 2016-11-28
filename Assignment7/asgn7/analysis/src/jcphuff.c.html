@@ -1,0 +1,852 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/jcphuff.c</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * jcphuff.c</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1995-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file contains Huffman entropy encoding routines for progressive JPEG.</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * We do not support output suspension in this module, since the library</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * currently does not allow multiple-scan files to be written with output</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * suspension.</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line14">014: </a>
+<a name="line15">015: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JPEG_INTERNALS
+<a name="line16">016: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jinclude.h"</span>
+<a name="line17">017: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jpeglib.h"</span>
+<a name="line18">018: </a><span style="font-weight: bold"><span style="color: #000080">#include</span></span> <span style="color: #FF0000">"jchuff.h"</span>               <span style="font-style: italic"><span style="color: #9A1900">/* Declarations shared with jchuff.c */</span></span>
+<a name="line19">019: </a>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> C_PROGRESSIVE_SUPPORTED
+<a name="line21">021: </a>
+<a name="line22">022: </a><span style="font-style: italic"><span style="color: #9A1900">/* Expanded entropy encoder object for progressive Huffman encoding. */</span></span>
+<a name="line23">023: </a>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> <span style="color: #FF0000">{</span>
+<a name="line25">025: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_entropy_encoder pub<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* public fields */</span></span>
+<a name="line26">026: </a>
+<a name="line27">027: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Mode flag: TRUE for optimization, FALSE for actual data output */</span></span>
+<a name="line28">028: </a>  boolean gather_statistics<span style="color: #990000">;</span>
+<a name="line29">029: </a>
+<a name="line30">030: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Bit-level coding status.</span></span>
+<a name="line31">031: </a><span style="font-style: italic"><span style="color: #9A1900">   * next_output_byte/free_in_buffer are local copies of cinfo-&gt;dest fields.</span></span>
+<a name="line32">032: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line33">033: </a>  JOCTET <span style="color: #990000">*</span> next_output_byte<span style="color: #990000">;</span>    <span style="font-style: italic"><span style="color: #9A1900">/* =&gt; next byte to write in buffer */</span></span>
+<a name="line34">034: </a>  size_t free_in_buffer<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* # of byte spaces remaining in buffer */</span></span>
+<a name="line35">035: </a>  INT32 put_buffer<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* current bit-accumulation buffer */</span></span>
+<a name="line36">036: </a>  <span style="color: #009900">int</span> put_bits<span style="color: #990000">;</span>                 <span style="font-style: italic"><span style="color: #9A1900">/* # of bits now in it */</span></span>
+<a name="line37">037: </a>  j_compress_ptr cinfo<span style="color: #990000">;</span>         <span style="font-style: italic"><span style="color: #9A1900">/* link to cinfo (needed for dump_buffer) */</span></span>
+<a name="line38">038: </a>
+<a name="line39">039: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Coding status for DC components */</span></span>
+<a name="line40">040: </a>  <span style="color: #009900">int</span> last_dc_val<span style="color: #990000">[</span>MAX_COMPS_IN_SCAN<span style="color: #990000">]</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* last DC coef for each component */</span></span>
+<a name="line41">041: </a>
+<a name="line42">042: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Coding status for AC components */</span></span>
+<a name="line43">043: </a>  <span style="color: #009900">int</span> ac_tbl_no<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* the table number of the single component */</span></span>
+<a name="line44">044: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> EOBRUN<span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* run length of EOBs */</span></span>
+<a name="line45">045: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> BE<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* # of buffered correction bits before MCU */</span></span>
+<a name="line46">046: </a>  <span style="color: #009900">char</span> <span style="color: #990000">*</span> bit_buffer<span style="color: #990000">;</span>            <span style="font-style: italic"><span style="color: #9A1900">/* buffer for correction bits (1 per char) */</span></span>
+<a name="line47">047: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* packing correction bits tightly would save some space but cost time... */</span></span>
+<a name="line48">048: </a>
+<a name="line49">049: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> restarts_to_go<span style="color: #990000">;</span>  <span style="font-style: italic"><span style="color: #9A1900">/* MCUs left in this restart interval */</span></span>
+<a name="line50">050: </a>  <span style="color: #009900">int</span> next_restart_num<span style="color: #990000">;</span>         <span style="font-style: italic"><span style="color: #9A1900">/* next restart number to write (0-7) */</span></span>
+<a name="line51">051: </a>
+<a name="line52">052: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Pointers to derived tables (these workspaces have image lifespan).</span></span>
+<a name="line53">053: </a><span style="font-style: italic"><span style="color: #9A1900">   * Since any one scan codes only DC or only AC, we only need one set</span></span>
+<a name="line54">054: </a><span style="font-style: italic"><span style="color: #9A1900">   * of tables, not one for DC and one for AC.</span></span>
+<a name="line55">055: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line56">056: </a>  c_derived_tbl <span style="color: #990000">*</span> derived_tbls<span style="color: #990000">[</span>NUM_HUFF_TBLS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line57">057: </a>
+<a name="line58">058: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Statistics tables for optimization; again, one set is enough */</span></span>
+<a name="line59">059: </a>  <span style="color: #009900">long</span> <span style="color: #990000">*</span> count_ptrs<span style="color: #990000">[</span>NUM_HUFF_TBLS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line60">060: </a><span style="color: #FF0000">}</span> phuff_entropy_encoder<span style="color: #990000">;</span>
+<a name="line61">061: </a>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> phuff_entropy_encoder <span style="color: #990000">*</span> phuff_entropy_ptr<span style="color: #990000">;</span>
+<a name="line63">063: </a>
+<a name="line64">064: </a><span style="font-style: italic"><span style="color: #9A1900">/* MAX_CORR_BITS is the number of bits the AC refinement correction-bit</span></span>
+<a name="line65">065: </a><span style="font-style: italic"><span style="color: #9A1900"> * buffer can hold.  Larger sizes may slightly improve compression, but</span></span>
+<a name="line66">066: </a><span style="font-style: italic"><span style="color: #9A1900"> * 1000 is already well into the realm of overkill.</span></span>
+<a name="line67">067: </a><span style="font-style: italic"><span style="color: #9A1900"> * The minimum safe size is 64 bits.</span></span>
+<a name="line68">068: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line69">069: </a>
+<a name="line70">070: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> MAX_CORR_BITS  <span style="color: #993399">1000</span>     <span style="font-style: italic"><span style="color: #9A1900">/* Max # of correction bits I can buffer */</span></span>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-style: italic"><span style="color: #9A1900">/* IRIGHT_SHIFT is like RIGHT_SHIFT, but works on int rather than INT32.</span></span>
+<a name="line73">073: </a><span style="font-style: italic"><span style="color: #9A1900"> * We assume that int right shift is unsigned if INT32 right shift is,</span></span>
+<a name="line74">074: </a><span style="font-style: italic"><span style="color: #9A1900"> * which should be safe.</span></span>
+<a name="line75">075: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line76">076: </a>
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> RIGHT_SHIFT_IS_UNSIGNED
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> ISHIFT_TEMPS    <span style="color: #009900">int</span> ishift_temp<span style="color: #990000">;</span>
+<a name="line79">079: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">IRIGHT_SHIFT</span></span><span style="color: #990000">(</span>x<span style="color: #990000">,</span>shft<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line80">080: </a>        <span style="color: #990000">(</span><span style="color: #990000">(</span>ishift_temp <span style="color: #990000">=</span> <span style="color: #990000">(</span>x<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span> <span style="color: #990000">?</span> <span style="color: #990000">\</span>
+<a name="line81">081: </a>         <span style="color: #990000">(</span>ishift_temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>shft<span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">|</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">~</span><span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #990000">(</span><span style="color: #993399">16</span><span style="color: #990000">-</span><span style="color: #990000">(</span>shft<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span> <span style="color: #990000">:</span> <span style="color: #990000">\</span>
+<a name="line82">082: </a>         <span style="color: #990000">(</span>ishift_temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>shft<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line83">083: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> ISHIFT_TEMPS
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">IRIGHT_SHIFT</span></span><span style="color: #990000">(</span>x<span style="color: #990000">,</span>shft<span style="color: #990000">)</span>    <span style="color: #990000">(</span><span style="color: #990000">(</span>x<span style="color: #990000">)</span> <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>shft<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line87">087: </a>
+<a name="line88">088: </a><span style="font-style: italic"><span style="color: #9A1900">/* Forward declarations */</span></span>
+<a name="line89">089: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> encode_mcu_DC_first <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line90">090: </a>                                            JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line91">091: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> encode_mcu_AC_first <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line92">092: </a>                                            JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line93">093: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> encode_mcu_DC_refine <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line94">094: </a>                                             JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line95">095: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span> encode_mcu_AC_refine <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span>
+<a name="line96">096: </a>                                             JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> finish_pass_phuff <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line98">098: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span> finish_pass_gather_phuff <span style="font-weight: bold"><span style="color: #000000">JPP</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line99">099: </a>
+<a name="line100">100: </a>
+<a name="line101">101: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line102">102: </a><span style="font-style: italic"><span style="color: #9A1900"> * Initialize for a Huffman-compressed scan using progressive JPEG.</span></span>
+<a name="line103">103: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line104">104: </a>
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000000">start_pass_phuff</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> boolean gather_statistics<span style="color: #990000">)</span>
+<a name="line107">107: </a><span style="color: #FF0000">{</span>  
+<a name="line108">108: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line109">109: </a>  boolean is_DC_band<span style="color: #990000">;</span>
+<a name="line110">110: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> tbl<span style="color: #990000">;</span>
+<a name="line111">111: </a>  jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">;</span>
+<a name="line112">112: </a>
+<a name="line113">113: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo <span style="color: #990000">=</span> cinfo<span style="color: #990000">;</span>
+<a name="line114">114: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>gather_statistics <span style="color: #990000">=</span> gather_statistics<span style="color: #990000">;</span>
+<a name="line115">115: </a>
+<a name="line116">116: </a>  is_DC_band <span style="color: #990000">=</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line117">117: </a>
+<a name="line118">118: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* We assume jcmaster.c already validated the scan parameters. */</span></span>
+<a name="line119">119: </a>
+<a name="line120">120: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Select execution routines */</span></span>
+<a name="line121">121: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line122">122: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_DC_band<span style="color: #990000">)</span>
+<a name="line123">123: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>encode_mcu <span style="color: #990000">=</span> encode_mcu_DC_first<span style="color: #990000">;</span>
+<a name="line124">124: </a>    <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line125">125: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>encode_mcu <span style="color: #990000">=</span> encode_mcu_AC_first<span style="color: #990000">;</span>
+<a name="line126">126: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line127">127: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_DC_band<span style="color: #990000">)</span>
+<a name="line128">128: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>encode_mcu <span style="color: #990000">=</span> encode_mcu_DC_refine<span style="color: #990000">;</span>
+<a name="line129">129: </a>    <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line130">130: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>encode_mcu <span style="color: #990000">=</span> encode_mcu_AC_refine<span style="color: #990000">;</span>
+<a name="line131">131: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* AC refinement needs a correction bit buffer */</span></span>
+<a name="line132">132: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line133">133: </a>        entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">char</span> <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line134">134: </a>          <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line135">135: </a>                                      MAX_CORR_BITS <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="color: #009900">char</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line136">136: </a>    <span style="color: #FF0000">}</span>
+<a name="line137">137: </a>  <span style="color: #FF0000">}</span>
+<a name="line138">138: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>gather_statistics<span style="color: #990000">)</span>
+<a name="line139">139: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>finish_pass <span style="color: #990000">=</span> finish_pass_gather_phuff<span style="color: #990000">;</span>
+<a name="line140">140: </a>  <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line141">141: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>finish_pass <span style="color: #990000">=</span> finish_pass_phuff<span style="color: #990000">;</span>
+<a name="line142">142: </a>
+<a name="line143">143: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Only DC coefficients may be interleaved, so cinfo-&gt;comps_in_scan = 1</span></span>
+<a name="line144">144: </a><span style="font-style: italic"><span style="color: #9A1900">   * for AC coefficients.</span></span>
+<a name="line145">145: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line146">146: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line147">147: </a>    compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line148">148: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Initialize DC predictions to 0 */</span></span>
+<a name="line149">149: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_dc_val<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line150">150: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Get table index */</span></span>
+<a name="line151">151: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_DC_band<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line152">152: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>       <span style="font-style: italic"><span style="color: #9A1900">/* DC refinement needs no table */</span></span>
+<a name="line153">153: </a>        <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line154">154: </a>      tbl <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">;</span>
+<a name="line155">155: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line156">156: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no <span style="color: #990000">=</span> tbl <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">;</span>
+<a name="line157">157: </a>    <span style="color: #FF0000">}</span>
+<a name="line158">158: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>gather_statistics<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line159">159: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Check for invalid table index */</span></span>
+<a name="line160">160: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* (make_c_derived_tbl does this in the other path) */</span></span>
+<a name="line161">161: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>tbl <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> tbl <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> NUM_HUFF_TBLS<span style="color: #990000">)</span>
+<a name="line162">162: </a>        <span style="font-weight: bold"><span style="color: #000000">ERREXIT1</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_NO_HUFF_TABLE<span style="color: #990000">,</span> tbl<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line163">163: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Allocate and zero the statistics tables */</span></span>
+<a name="line164">164: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Note that jpeg_gen_optimal_table expects 257 entries in each table! */</span></span>
+<a name="line165">165: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line166">166: </a>        entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">long</span> <span style="color: #990000">*</span><span style="color: #990000">)</span>
+<a name="line167">167: </a>          <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line168">168: </a>                                      <span style="color: #993399">257</span> <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line169">169: </a>      <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">,</span> <span style="color: #993399">257</span> <span style="color: #990000">*</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span><span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line170">170: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line171">171: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Compute derived values for Huffman table */</span></span>
+<a name="line172">172: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* We may do this more than once for a table, but it's not expensive */</span></span>
+<a name="line173">173: </a>      <span style="font-weight: bold"><span style="color: #000000">jpeg_make_c_derived_tbl</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> is_DC_band<span style="color: #990000">,</span> tbl<span style="color: #990000">,</span>
+<a name="line174">174: </a>                              <span style="color: #990000">&amp;</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>derived_tbls<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line175">175: </a>    <span style="color: #FF0000">}</span>
+<a name="line176">176: </a>  <span style="color: #FF0000">}</span>
+<a name="line177">177: </a>
+<a name="line178">178: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize AC stuff */</span></span>
+<a name="line179">179: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line180">180: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line181">181: </a>
+<a name="line182">182: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize bit buffer to empty */</span></span>
+<a name="line183">183: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_buffer <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line184">184: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_bits <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line185">185: </a>
+<a name="line186">186: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Initialize restart stuff */</span></span>
+<a name="line187">187: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line188">188: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line189">189: </a><span style="color: #FF0000">}</span>
+<a name="line190">190: </a>
+<a name="line191">191: </a>
+<a name="line192">192: </a><span style="font-style: italic"><span style="color: #9A1900">/* Outputting bytes to the file.</span></span>
+<a name="line193">193: </a><span style="font-style: italic"><span style="color: #9A1900"> * NB: these must be called only when actually outputting,</span></span>
+<a name="line194">194: </a><span style="font-style: italic"><span style="color: #9A1900"> * that is, entropy-&gt;gather_statistics == FALSE.</span></span>
+<a name="line195">195: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line196">196: </a>
+<a name="line197">197: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit a byte */</span></span>
+<a name="line198">198: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span>val<span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line199">199: </a>        <span style="color: #FF0000">{</span> <span style="color: #990000">*</span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">+</span><span style="color: #990000">+</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span>JOCTET<span style="color: #990000">)</span> <span style="color: #990000">(</span>val<span style="color: #990000">)</span><span style="color: #990000">;</span>  <span style="color: #990000">\</span>
+<a name="line200">200: </a>          <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>  <span style="color: #990000">\</span>
+<a name="line201">201: </a>            <span style="font-weight: bold"><span style="color: #000000">dump_buffer</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="color: #FF0000">}</span>
+<a name="line202">202: </a>
+<a name="line203">203: </a>
+<a name="line204">204: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line205">205: </a><span style="font-weight: bold"><span style="color: #000000">dump_buffer</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">)</span>
+<a name="line206">206: </a><span style="font-style: italic"><span style="color: #9A1900">/* Empty the output buffer; we do not support suspension in this module. */</span></span>
+<a name="line207">207: </a><span style="color: #FF0000">{</span>
+<a name="line208">208: </a>  <span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_destination_mgr <span style="color: #990000">*</span> dest <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">;</span>
+<a name="line209">209: </a>
+<a name="line210">210: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>empty_output_buffer<span style="color: #990000">)</span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line211">211: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">,</span> JERR_CANT_SUSPEND<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line212">212: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* After a successful buffer dump, must reset buffer pointers */</span></span>
+<a name="line213">213: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line214">214: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line215">215: </a><span style="color: #FF0000">}</span>
+<a name="line216">216: </a>
+<a name="line217">217: </a>
+<a name="line218">218: </a><span style="font-style: italic"><span style="color: #9A1900">/* Outputting bits to the file */</span></span>
+<a name="line219">219: </a>
+<a name="line220">220: </a><span style="font-style: italic"><span style="color: #9A1900">/* Only the right 24 bits of put_buffer are used; the valid bits are</span></span>
+<a name="line221">221: </a><span style="font-style: italic"><span style="color: #9A1900"> * left-justified in this part.  At most 16 bits can be passed to emit_bits</span></span>
+<a name="line222">222: </a><span style="font-style: italic"><span style="color: #9A1900"> * in one call, and we never retain more than 7 bits in put_buffer</span></span>
+<a name="line223">223: </a><span style="font-style: italic"><span style="color: #9A1900"> * between calls, so 24 bits are sufficient.</span></span>
+<a name="line224">224: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line225">225: </a>
+<a name="line226">226: </a>INLINE
+<a name="line227">227: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line228">228: </a><span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">,</span> <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> code<span style="color: #990000">,</span> <span style="color: #009900">int</span> size<span style="color: #990000">)</span>
+<a name="line229">229: </a><span style="font-style: italic"><span style="color: #9A1900">/* Emit some bits, unless we are in gather mode */</span></span>
+<a name="line230">230: </a><span style="color: #FF0000">{</span>
+<a name="line231">231: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* This routine is heavily used, so it's worth coding tightly. */</span></span>
+<a name="line232">232: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> INT32 put_buffer <span style="color: #990000">=</span> <span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> code<span style="color: #990000">;</span>
+<a name="line233">233: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> put_bits <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_bits<span style="color: #990000">;</span>
+<a name="line234">234: </a>
+<a name="line235">235: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* if size is 0, caller used an invalid Huffman table entry */</span></span>
+<a name="line236">236: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>size <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line237">237: </a>    <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">,</span> JERR_HUFF_MISSING_CODE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line238">238: </a>
+<a name="line239">239: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>gather_statistics<span style="color: #990000">)</span>
+<a name="line240">240: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* do nothing if we're only getting stats */</span></span>
+<a name="line241">241: </a>
+<a name="line242">242: </a>  put_buffer <span style="color: #990000">&amp;</span><span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">(</span>INT32<span style="color: #990000">)</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span>size<span style="color: #990000">)</span> <span style="color: #990000">-</span> <span style="color: #993399">1</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* mask off any extra bits in code */</span></span>
+<a name="line243">243: </a>  
+<a name="line244">244: </a>  put_bits <span style="color: #990000">+</span><span style="color: #990000">=</span> size<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* new number of bits in buffer */</span></span>
+<a name="line245">245: </a>  
+<a name="line246">246: </a>  put_buffer <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #990000">=</span> <span style="color: #993399">24</span> <span style="color: #990000">-</span> put_bits<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* align incoming bits */</span></span>
+<a name="line247">247: </a>
+<a name="line248">248: </a>  put_buffer <span style="color: #990000">|</span><span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_buffer<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* and merge with old buffer contents */</span></span>
+<a name="line249">249: </a>
+<a name="line250">250: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>put_bits <span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">8</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line251">251: </a>    <span style="color: #009900">int</span> c <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>put_buffer <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> <span style="color: #993399">16</span><span style="color: #990000">)</span> <span style="color: #990000">&amp;</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line252">252: </a>    
+<a name="line253">253: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> c<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line254">254: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>c <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>            <span style="font-style: italic"><span style="color: #9A1900">/* need to stuff a zero byte? */</span></span>
+<a name="line255">255: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line256">256: </a>    <span style="color: #FF0000">}</span>
+<a name="line257">257: </a>    put_buffer <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span><span style="color: #990000">=</span> <span style="color: #993399">8</span><span style="color: #990000">;</span>
+<a name="line258">258: </a>    put_bits <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #993399">8</span><span style="color: #990000">;</span>
+<a name="line259">259: </a>  <span style="color: #FF0000">}</span>
+<a name="line260">260: </a>
+<a name="line261">261: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_buffer <span style="color: #990000">=</span> put_buffer<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* update variables */</span></span>
+<a name="line262">262: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_bits <span style="color: #990000">=</span> put_bits<span style="color: #990000">;</span>
+<a name="line263">263: </a><span style="color: #FF0000">}</span>
+<a name="line264">264: </a>
+<a name="line265">265: </a>
+<a name="line266">266: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line267">267: </a><span style="font-weight: bold"><span style="color: #000000">flush_bits</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">)</span>
+<a name="line268">268: </a><span style="color: #FF0000">{</span>
+<a name="line269">269: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #993399">0x7F</span><span style="color: #990000">,</span> <span style="color: #993399">7</span><span style="color: #990000">)</span><span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* fill any partial byte with ones */</span></span>
+<a name="line270">270: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_buffer <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>     <span style="font-style: italic"><span style="color: #9A1900">/* and reset bit-buffer to empty */</span></span>
+<a name="line271">271: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>put_bits <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line272">272: </a><span style="color: #FF0000">}</span>
+<a name="line273">273: </a>
+<a name="line274">274: </a>
+<a name="line275">275: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line276">276: </a><span style="font-style: italic"><span style="color: #9A1900"> * Emit (or just count) a Huffman symbol.</span></span>
+<a name="line277">277: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line278">278: </a>
+<a name="line279">279: </a>INLINE
+<a name="line280">280: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line281">281: </a><span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">,</span> <span style="color: #009900">int</span> tbl_no<span style="color: #990000">,</span> <span style="color: #009900">int</span> symbol<span style="color: #990000">)</span>
+<a name="line282">282: </a><span style="color: #FF0000">{</span>
+<a name="line283">283: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>gather_statistics<span style="color: #990000">)</span>
+<a name="line284">284: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>tbl_no<span style="color: #990000">]</span><span style="color: #990000">[</span>symbol<span style="color: #990000">]</span><span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line285">285: </a>  <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line286">286: </a>    c_derived_tbl <span style="color: #990000">*</span> tbl <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>derived_tbls<span style="color: #990000">[</span>tbl_no<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line287">287: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> tbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ehufco<span style="color: #990000">[</span>symbol<span style="color: #990000">]</span><span style="color: #990000">,</span> tbl<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ehufsi<span style="color: #990000">[</span>symbol<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line288">288: </a>  <span style="color: #FF0000">}</span>
+<a name="line289">289: </a><span style="color: #FF0000">}</span>
+<a name="line290">290: </a>
+<a name="line291">291: </a>
+<a name="line292">292: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line293">293: </a><span style="font-style: italic"><span style="color: #9A1900"> * Emit bits from a correction bit buffer.</span></span>
+<a name="line294">294: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line295">295: </a>
+<a name="line296">296: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line297">297: </a><span style="font-weight: bold"><span style="color: #000000">emit_buffered_bits</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">,</span> <span style="color: #009900">char</span> <span style="color: #990000">*</span> bufstart<span style="color: #990000">,</span>
+<a name="line298">298: </a>                    <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> nbits<span style="color: #990000">)</span>
+<a name="line299">299: </a><span style="color: #FF0000">{</span>
+<a name="line300">300: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>gather_statistics<span style="color: #990000">)</span>
+<a name="line301">301: </a>    <span style="font-weight: bold"><span style="color: #0000FF">return</span></span><span style="color: #990000">;</span>                     <span style="font-style: italic"><span style="color: #9A1900">/* no real work */</span></span>
+<a name="line302">302: </a>
+<a name="line303">303: </a>  <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>nbits <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line304">304: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>bufstart<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line305">305: </a>    bufstart<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line306">306: </a>    nbits<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line307">307: </a>  <span style="color: #FF0000">}</span>
+<a name="line308">308: </a><span style="color: #FF0000">}</span>
+<a name="line309">309: </a>
+<a name="line310">310: </a>
+<a name="line311">311: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line312">312: </a><span style="font-style: italic"><span style="color: #9A1900"> * Emit any pending EOBRUN symbol.</span></span>
+<a name="line313">313: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line314">314: </a>
+<a name="line315">315: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line316">316: </a><span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">)</span>
+<a name="line317">317: </a><span style="color: #FF0000">{</span>
+<a name="line318">318: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> temp<span style="color: #990000">,</span> nbits<span style="color: #990000">;</span>
+<a name="line319">319: </a>
+<a name="line320">320: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>    <span style="font-style: italic"><span style="color: #9A1900">/* if there is any pending EOBRUN */</span></span>
+<a name="line321">321: </a>    temp <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN<span style="color: #990000">;</span>
+<a name="line322">322: </a>    nbits <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line323">323: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line324">324: </a>      nbits<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line325">325: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* safety check: shouldn't happen given limited correction-bit buffer */</span></span>
+<a name="line326">326: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nbits <span style="color: #990000">&gt;</span> <span style="color: #993399">14</span><span style="color: #990000">)</span>
+<a name="line327">327: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">,</span> JERR_HUFF_MISSING_CODE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line328">328: </a>
+<a name="line329">329: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> nbits <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line330">330: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span>
+<a name="line331">331: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN<span style="color: #990000">,</span> nbits<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line332">332: </a>
+<a name="line333">333: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line334">334: </a>
+<a name="line335">335: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit any buffered correction bits */</span></span>
+<a name="line336">336: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_buffered_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line337">337: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line338">338: </a>  <span style="color: #FF0000">}</span>
+<a name="line339">339: </a><span style="color: #FF0000">}</span>
+<a name="line340">340: </a>
+<a name="line341">341: </a>
+<a name="line342">342: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line343">343: </a><span style="font-style: italic"><span style="color: #9A1900"> * Emit a restart marker &amp; resynchronize predictions.</span></span>
+<a name="line344">344: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line345">345: </a>
+<a name="line346">346: </a><span style="font-weight: bold"><span style="color: #000000">LOCAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line347">347: </a><span style="font-weight: bold"><span style="color: #000000">emit_restart</span></span> <span style="color: #990000">(</span>phuff_entropy_ptr entropy<span style="color: #990000">,</span> <span style="color: #009900">int</span> restart_num<span style="color: #990000">)</span>
+<a name="line348">348: </a><span style="color: #FF0000">{</span>
+<a name="line349">349: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">;</span>
+<a name="line350">350: </a>
+<a name="line351">351: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line352">352: </a>
+<a name="line353">353: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>gather_statistics<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line354">354: </a>    <span style="font-weight: bold"><span style="color: #000000">flush_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line355">355: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #993399">0xFF</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line356">356: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_byte</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> JPEG_RST0 <span style="color: #990000">+</span> restart_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line357">357: </a>  <span style="color: #FF0000">}</span>
+<a name="line358">358: </a>
+<a name="line359">359: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line360">360: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Re-initialize DC predictions to 0 */</span></span>
+<a name="line361">361: </a>    <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span>
+<a name="line362">362: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_dc_val<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line363">363: </a>  <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line364">364: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Re-initialize all AC-related fields to 0 */</span></span>
+<a name="line365">365: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line366">366: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line367">367: </a>  <span style="color: #FF0000">}</span>
+<a name="line368">368: </a><span style="color: #FF0000">}</span>
+<a name="line369">369: </a>
+<a name="line370">370: </a>
+<a name="line371">371: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line372">372: </a><span style="font-style: italic"><span style="color: #9A1900"> * MCU encoding for DC initial scan (either spectral selection,</span></span>
+<a name="line373">373: </a><span style="font-style: italic"><span style="color: #9A1900"> * or first pass of successive approximation).</span></span>
+<a name="line374">374: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line375">375: </a>
+<a name="line376">376: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line377">377: </a><span style="font-weight: bold"><span style="color: #000000">encode_mcu_DC_first</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span>
+<a name="line378">378: </a><span style="color: #FF0000">{</span>
+<a name="line379">379: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line380">380: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> temp<span style="color: #990000">,</span> temp2<span style="color: #990000">;</span>
+<a name="line381">381: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> nbits<span style="color: #990000">;</span>
+<a name="line382">382: </a>  <span style="color: #009900">int</span> blkn<span style="color: #990000">,</span> ci<span style="color: #990000">;</span>
+<a name="line383">383: </a>  <span style="color: #009900">int</span> Al <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Al<span style="color: #990000">;</span>
+<a name="line384">384: </a>  JBLOCKROW block<span style="color: #990000">;</span>
+<a name="line385">385: </a>  jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">;</span>
+<a name="line386">386: </a>  ISHIFT_TEMPS
+<a name="line387">387: </a>
+<a name="line388">388: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line389">389: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line390">390: </a>
+<a name="line391">391: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit restart marker if needed */</span></span>
+<a name="line392">392: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span>
+<a name="line393">393: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line394">394: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_restart</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line395">395: </a>
+<a name="line396">396: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the MCU data blocks */</span></span>
+<a name="line397">397: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>blkn <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> blkn <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>blocks_in_MCU<span style="color: #990000">;</span> blkn<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line398">398: </a>    block <span style="color: #990000">=</span> MCU_data<span style="color: #990000">[</span>blkn<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line399">399: </a>    ci <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>MCU_membership<span style="color: #990000">[</span>blkn<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line400">400: </a>    compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line401">401: </a>
+<a name="line402">402: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Compute the DC value after the required point transform by Al.</span></span>
+<a name="line403">403: </a><span style="font-style: italic"><span style="color: #9A1900">     * This is simply an arithmetic right shift.</span></span>
+<a name="line404">404: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line405">405: </a>    temp2 <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">IRIGHT_SHIFT</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">*</span>block<span style="color: #990000">)</span><span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">,</span> Al<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line406">406: </a>
+<a name="line407">407: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* DC differences are figured on the point-transformed values. */</span></span>
+<a name="line408">408: </a>    temp <span style="color: #990000">=</span> temp2 <span style="color: #990000">-</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_dc_val<span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line409">409: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>last_dc_val<span style="color: #990000">[</span>ci<span style="color: #990000">]</span> <span style="color: #990000">=</span> temp2<span style="color: #990000">;</span>
+<a name="line410">410: </a>
+<a name="line411">411: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Encode the DC coefficient difference per section G.1.2.1 */</span></span>
+<a name="line412">412: </a>    temp2 <span style="color: #990000">=</span> temp<span style="color: #990000">;</span>
+<a name="line413">413: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line414">414: </a>      temp <span style="color: #990000">=</span> <span style="color: #990000">-</span>temp<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* temp is abs value of input */</span></span>
+<a name="line415">415: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* For a negative input, want temp2 = bitwise complement of abs(input) */</span></span>
+<a name="line416">416: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* This code assumes we are on a two's complement machine */</span></span>
+<a name="line417">417: </a>      temp2<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line418">418: </a>    <span style="color: #FF0000">}</span>
+<a name="line419">419: </a>    
+<a name="line420">420: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Find the number of bits needed for the magnitude of the coefficient */</span></span>
+<a name="line421">421: </a>    nbits <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line422">422: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>temp<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line423">423: </a>      nbits<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line424">424: </a>      temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line425">425: </a>    <span style="color: #FF0000">}</span>
+<a name="line426">426: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Check for out-of-range coefficient values.</span></span>
+<a name="line427">427: </a><span style="font-style: italic"><span style="color: #9A1900">     * Since we're encoding a difference, the range limit is twice as much.</span></span>
+<a name="line428">428: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line429">429: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nbits <span style="color: #990000">&gt;</span> MAX_COEF_BITS<span style="color: #990000">+</span><span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line430">430: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_DCT_COEF<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line431">431: </a>    
+<a name="line432">432: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count/emit the Huffman-coded symbol for the number of bits */</span></span>
+<a name="line433">433: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">,</span> nbits<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line434">434: </a>    
+<a name="line435">435: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit that number of bits of the value, if positive, */</span></span>
+<a name="line436">436: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* or the complement of its magnitude, if negative. */</span></span>
+<a name="line437">437: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nbits<span style="color: #990000">)</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* emit_bits rejects calls with size 0 */</span></span>
+<a name="line438">438: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> temp2<span style="color: #990000">,</span> nbits<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line439">439: </a>  <span style="color: #FF0000">}</span>
+<a name="line440">440: </a>
+<a name="line441">441: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line442">442: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line443">443: </a>
+<a name="line444">444: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Update restart-interval state too */</span></span>
+<a name="line445">445: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line446">446: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line447">447: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line448">448: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line449">449: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num <span style="color: #990000">&amp;</span><span style="color: #990000">=</span> <span style="color: #993399">7</span><span style="color: #990000">;</span>
+<a name="line450">450: </a>    <span style="color: #FF0000">}</span>
+<a name="line451">451: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line452">452: </a>  <span style="color: #FF0000">}</span>
+<a name="line453">453: </a>
+<a name="line454">454: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>
+<a name="line455">455: </a><span style="color: #FF0000">}</span>
+<a name="line456">456: </a>
+<a name="line457">457: </a>
+<a name="line458">458: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line459">459: </a><span style="font-style: italic"><span style="color: #9A1900"> * MCU encoding for AC initial scan (either spectral selection,</span></span>
+<a name="line460">460: </a><span style="font-style: italic"><span style="color: #9A1900"> * or first pass of successive approximation).</span></span>
+<a name="line461">461: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line462">462: </a>
+<a name="line463">463: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line464">464: </a><span style="font-weight: bold"><span style="color: #000000">encode_mcu_AC_first</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span>
+<a name="line465">465: </a><span style="color: #FF0000">{</span>
+<a name="line466">466: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line467">467: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> temp<span style="color: #990000">,</span> temp2<span style="color: #990000">;</span>
+<a name="line468">468: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> nbits<span style="color: #990000">;</span>
+<a name="line469">469: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> r<span style="color: #990000">,</span> k<span style="color: #990000">;</span>
+<a name="line470">470: </a>  <span style="color: #009900">int</span> Se <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Se<span style="color: #990000">;</span>
+<a name="line471">471: </a>  <span style="color: #009900">int</span> Al <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Al<span style="color: #990000">;</span>
+<a name="line472">472: </a>  JBLOCKROW block<span style="color: #990000">;</span>
+<a name="line473">473: </a>
+<a name="line474">474: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line475">475: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line476">476: </a>
+<a name="line477">477: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit restart marker if needed */</span></span>
+<a name="line478">478: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span>
+<a name="line479">479: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line480">480: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_restart</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line481">481: </a>
+<a name="line482">482: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the MCU data block */</span></span>
+<a name="line483">483: </a>  block <span style="color: #990000">=</span> MCU_data<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line484">484: </a>
+<a name="line485">485: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the AC coefficients per section G.1.2.2, fig. G.3 */</span></span>
+<a name="line486">486: </a>  
+<a name="line487">487: </a>  r <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                        <span style="font-style: italic"><span style="color: #9A1900">/* r = run length of zeros */</span></span>
+<a name="line488">488: </a>   
+<a name="line489">489: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>k <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss<span style="color: #990000">;</span> k <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> Se<span style="color: #990000">;</span> k<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line490">490: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>temp <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>block<span style="color: #990000">)</span><span style="color: #990000">[</span>jpeg_natural_order<span style="color: #990000">[</span>k<span style="color: #990000">]</span><span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line491">491: </a>      r<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line492">492: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line493">493: </a>    <span style="color: #FF0000">}</span>
+<a name="line494">494: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* We must apply the point transform by Al.  For AC coefficients this</span></span>
+<a name="line495">495: </a><span style="font-style: italic"><span style="color: #9A1900">     * is an integer division with rounding towards 0.  To do this portably</span></span>
+<a name="line496">496: </a><span style="font-style: italic"><span style="color: #9A1900">     * in C, we shift after obtaining the absolute value; so the code is</span></span>
+<a name="line497">497: </a><span style="font-style: italic"><span style="color: #9A1900">     * interwoven with finding the abs value (temp) and output bits (temp2).</span></span>
+<a name="line498">498: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line499">499: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line500">500: </a>      temp <span style="color: #990000">=</span> <span style="color: #990000">-</span>temp<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* temp is abs value of input */</span></span>
+<a name="line501">501: </a>      temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> Al<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* apply the point transform */</span></span>
+<a name="line502">502: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* For a negative coef, want temp2 = bitwise complement of abs(coef) */</span></span>
+<a name="line503">503: </a>      temp2 <span style="color: #990000">=</span> <span style="color: #990000">~</span>temp<span style="color: #990000">;</span>
+<a name="line504">504: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line505">505: </a>      temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> Al<span style="color: #990000">;</span>              <span style="font-style: italic"><span style="color: #9A1900">/* apply the point transform */</span></span>
+<a name="line506">506: </a>      temp2 <span style="color: #990000">=</span> temp<span style="color: #990000">;</span>
+<a name="line507">507: </a>    <span style="color: #FF0000">}</span>
+<a name="line508">508: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Watch out for case that nonzero coef is zero after point transform */</span></span>
+<a name="line509">509: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line510">510: </a>      r<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line511">511: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line512">512: </a>    <span style="color: #FF0000">}</span>
+<a name="line513">513: </a>
+<a name="line514">514: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit any pending EOBRUN */</span></span>
+<a name="line515">515: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line516">516: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line517">517: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* if run length &gt; 15, must emit special run-length-16 codes (0xF0) */</span></span>
+<a name="line518">518: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>r <span style="color: #990000">&gt;</span> <span style="color: #993399">15</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line519">519: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> <span style="color: #993399">0xF0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line520">520: </a>      r <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #993399">16</span><span style="color: #990000">;</span>
+<a name="line521">521: </a>    <span style="color: #FF0000">}</span>
+<a name="line522">522: </a>
+<a name="line523">523: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Find the number of bits needed for the magnitude of the coefficient */</span></span>
+<a name="line524">524: </a>    nbits <span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* there must be at least one 1 bit */</span></span>
+<a name="line525">525: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line526">526: </a>      nbits<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line527">527: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Check for out-of-range coefficient values */</span></span>
+<a name="line528">528: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>nbits <span style="color: #990000">&gt;</span> MAX_COEF_BITS<span style="color: #990000">)</span>
+<a name="line529">529: </a>      <span style="font-weight: bold"><span style="color: #000000">ERREXIT</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> JERR_BAD_DCT_COEF<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line530">530: </a>
+<a name="line531">531: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count/emit Huffman symbol for run length / number of bits */</span></span>
+<a name="line532">532: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> <span style="color: #990000">(</span>r <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> nbits<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line533">533: </a>
+<a name="line534">534: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit that number of bits of the value, if positive, */</span></span>
+<a name="line535">535: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* or the complement of its magnitude, if negative. */</span></span>
+<a name="line536">536: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> temp2<span style="color: #990000">,</span> nbits<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line537">537: </a>
+<a name="line538">538: </a>    r <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                      <span style="font-style: italic"><span style="color: #9A1900">/* reset zero run length */</span></span>
+<a name="line539">539: </a>  <span style="color: #FF0000">}</span>
+<a name="line540">540: </a>
+<a name="line541">541: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>r <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* If there are trailing zeroes, */</span></span>
+<a name="line542">542: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* count an EOB */</span></span>
+<a name="line543">543: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0x7FFF</span><span style="color: #990000">)</span>
+<a name="line544">544: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>     <span style="font-style: italic"><span style="color: #9A1900">/* force it out to avoid overflow */</span></span>
+<a name="line545">545: </a>  <span style="color: #FF0000">}</span>
+<a name="line546">546: </a>
+<a name="line547">547: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line548">548: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line549">549: </a>
+<a name="line550">550: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Update restart-interval state too */</span></span>
+<a name="line551">551: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line552">552: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line553">553: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line554">554: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line555">555: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num <span style="color: #990000">&amp;</span><span style="color: #990000">=</span> <span style="color: #993399">7</span><span style="color: #990000">;</span>
+<a name="line556">556: </a>    <span style="color: #FF0000">}</span>
+<a name="line557">557: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line558">558: </a>  <span style="color: #FF0000">}</span>
+<a name="line559">559: </a>
+<a name="line560">560: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>
+<a name="line561">561: </a><span style="color: #FF0000">}</span>
+<a name="line562">562: </a>
+<a name="line563">563: </a>
+<a name="line564">564: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line565">565: </a><span style="font-style: italic"><span style="color: #9A1900"> * MCU encoding for DC successive approximation refinement scan.</span></span>
+<a name="line566">566: </a><span style="font-style: italic"><span style="color: #9A1900"> * Note: we assume such scans can be multi-component, although the spec</span></span>
+<a name="line567">567: </a><span style="font-style: italic"><span style="color: #9A1900"> * is not very clear on the point.</span></span>
+<a name="line568">568: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line569">569: </a>
+<a name="line570">570: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line571">571: </a><span style="font-weight: bold"><span style="color: #000000">encode_mcu_DC_refine</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span>
+<a name="line572">572: </a><span style="color: #FF0000">{</span>
+<a name="line573">573: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line574">574: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> temp<span style="color: #990000">;</span>
+<a name="line575">575: </a>  <span style="color: #009900">int</span> blkn<span style="color: #990000">;</span>
+<a name="line576">576: </a>  <span style="color: #009900">int</span> Al <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Al<span style="color: #990000">;</span>
+<a name="line577">577: </a>  JBLOCKROW block<span style="color: #990000">;</span>
+<a name="line578">578: </a>
+<a name="line579">579: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line580">580: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line581">581: </a>
+<a name="line582">582: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit restart marker if needed */</span></span>
+<a name="line583">583: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span>
+<a name="line584">584: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line585">585: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_restart</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line586">586: </a>
+<a name="line587">587: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the MCU data blocks */</span></span>
+<a name="line588">588: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>blkn <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> blkn <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>blocks_in_MCU<span style="color: #990000">;</span> blkn<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line589">589: </a>    block <span style="color: #990000">=</span> MCU_data<span style="color: #990000">[</span>blkn<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line590">590: </a>
+<a name="line591">591: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* We simply emit the Al'th bit of the DC coefficient value. */</span></span>
+<a name="line592">592: </a>    temp <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>block<span style="color: #990000">)</span><span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line593">593: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span> Al<span style="color: #990000">)</span><span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line594">594: </a>  <span style="color: #FF0000">}</span>
+<a name="line595">595: </a>
+<a name="line596">596: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line597">597: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line598">598: </a>
+<a name="line599">599: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Update restart-interval state too */</span></span>
+<a name="line600">600: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line601">601: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line602">602: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line603">603: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line604">604: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num <span style="color: #990000">&amp;</span><span style="color: #990000">=</span> <span style="color: #993399">7</span><span style="color: #990000">;</span>
+<a name="line605">605: </a>    <span style="color: #FF0000">}</span>
+<a name="line606">606: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line607">607: </a>  <span style="color: #FF0000">}</span>
+<a name="line608">608: </a>
+<a name="line609">609: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>
+<a name="line610">610: </a><span style="color: #FF0000">}</span>
+<a name="line611">611: </a>
+<a name="line612">612: </a>
+<a name="line613">613: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line614">614: </a><span style="font-style: italic"><span style="color: #9A1900"> * MCU encoding for AC successive approximation refinement scan.</span></span>
+<a name="line615">615: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line616">616: </a>
+<a name="line617">617: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span>boolean<span style="color: #990000">)</span>
+<a name="line618">618: </a><span style="font-weight: bold"><span style="color: #000000">encode_mcu_AC_refine</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">,</span> JBLOCKROW <span style="color: #990000">*</span>MCU_data<span style="color: #990000">)</span>
+<a name="line619">619: </a><span style="color: #FF0000">{</span>
+<a name="line620">620: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line621">621: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> temp<span style="color: #990000">;</span>
+<a name="line622">622: </a>  <span style="font-weight: bold"><span style="color: #0000FF">register</span></span> <span style="color: #009900">int</span> r<span style="color: #990000">,</span> k<span style="color: #990000">;</span>
+<a name="line623">623: </a>  <span style="color: #009900">int</span> EOB<span style="color: #990000">;</span>
+<a name="line624">624: </a>  <span style="color: #009900">char</span> <span style="color: #990000">*</span>BR_buffer<span style="color: #990000">;</span>
+<a name="line625">625: </a>  <span style="color: #009900">unsigned</span> <span style="color: #009900">int</span> BR<span style="color: #990000">;</span>
+<a name="line626">626: </a>  <span style="color: #009900">int</span> Se <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Se<span style="color: #990000">;</span>
+<a name="line627">627: </a>  <span style="color: #009900">int</span> Al <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Al<span style="color: #990000">;</span>
+<a name="line628">628: </a>  JBLOCKROW block<span style="color: #990000">;</span>
+<a name="line629">629: </a>  <span style="color: #009900">int</span> absvalues<span style="color: #990000">[</span>DCTSIZE2<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line630">630: </a>
+<a name="line631">631: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line632">632: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line633">633: </a>
+<a name="line634">634: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Emit restart marker if needed */</span></span>
+<a name="line635">635: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span>
+<a name="line636">636: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line637">637: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_restart</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line638">638: </a>
+<a name="line639">639: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the MCU data block */</span></span>
+<a name="line640">640: </a>  block <span style="color: #990000">=</span> MCU_data<span style="color: #990000">[</span><span style="color: #993399">0</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line641">641: </a>
+<a name="line642">642: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* It is convenient to make a pre-pass to determine the transformed</span></span>
+<a name="line643">643: </a><span style="font-style: italic"><span style="color: #9A1900">   * coefficients' absolute values and the EOB position.</span></span>
+<a name="line644">644: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line645">645: </a>  EOB <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line646">646: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>k <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss<span style="color: #990000">;</span> k <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> Se<span style="color: #990000">;</span> k<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line647">647: </a>    temp <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">*</span>block<span style="color: #990000">)</span><span style="color: #990000">[</span>jpeg_natural_order<span style="color: #990000">[</span>k<span style="color: #990000">]</span><span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line648">648: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* We must apply the point transform by Al.  For AC coefficients this</span></span>
+<a name="line649">649: </a><span style="font-style: italic"><span style="color: #9A1900">     * is an integer division with rounding towards 0.  To do this portably</span></span>
+<a name="line650">650: </a><span style="font-style: italic"><span style="color: #9A1900">     * in C, we shift after obtaining the absolute value.</span></span>
+<a name="line651">651: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line652">652: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+<a name="line653">653: </a>      temp <span style="color: #990000">=</span> <span style="color: #990000">-</span>temp<span style="color: #990000">;</span>             <span style="font-style: italic"><span style="color: #9A1900">/* temp is abs value of input */</span></span>
+<a name="line654">654: </a>    temp <span style="color: #990000">&gt;</span><span style="color: #990000">&gt;</span><span style="color: #990000">=</span> Al<span style="color: #990000">;</span>                <span style="font-style: italic"><span style="color: #9A1900">/* apply the point transform */</span></span>
+<a name="line655">655: </a>    absvalues<span style="color: #990000">[</span>k<span style="color: #990000">]</span> <span style="color: #990000">=</span> temp<span style="color: #990000">;</span>        <span style="font-style: italic"><span style="color: #9A1900">/* save abs value for main pass */</span></span>
+<a name="line656">656: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">1</span><span style="color: #990000">)</span>
+<a name="line657">657: </a>      EOB <span style="color: #990000">=</span> k<span style="color: #990000">;</span>                  <span style="font-style: italic"><span style="color: #9A1900">/* EOB = index of last newly-nonzero coef */</span></span>
+<a name="line658">658: </a>  <span style="color: #FF0000">}</span>
+<a name="line659">659: </a>
+<a name="line660">660: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Encode the AC coefficients per section G.1.2.3, fig. G.7 */</span></span>
+<a name="line661">661: </a>  
+<a name="line662">662: </a>  r <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                        <span style="font-style: italic"><span style="color: #9A1900">/* r = run length of zeros */</span></span>
+<a name="line663">663: </a>  BR <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                       <span style="font-style: italic"><span style="color: #9A1900">/* BR = count of buffered bits added now */</span></span>
+<a name="line664">664: </a>  BR_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer <span style="color: #990000">+</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* Append bits to buffer */</span></span>
+<a name="line665">665: </a>
+<a name="line666">666: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>k <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss<span style="color: #990000">;</span> k <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> Se<span style="color: #990000">;</span> k<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line667">667: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">(</span>temp <span style="color: #990000">=</span> absvalues<span style="color: #990000">[</span>k<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line668">668: </a>      r<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line669">669: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line670">670: </a>    <span style="color: #FF0000">}</span>
+<a name="line671">671: </a>
+<a name="line672">672: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit any required ZRLs, but not if they can be folded into EOB */</span></span>
+<a name="line673">673: </a>    <span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>r <span style="color: #990000">&gt;</span> <span style="color: #993399">15</span> <span style="color: #990000">&amp;</span><span style="color: #990000">&amp;</span> k <span style="color: #990000">&lt;</span><span style="color: #990000">=</span> EOB<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line674">674: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* emit any pending EOBRUN and the BE correction bits */</span></span>
+<a name="line675">675: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line676">676: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Emit ZRL */</span></span>
+<a name="line677">677: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> <span style="color: #993399">0xF0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line678">678: </a>      r <span style="color: #990000">-</span><span style="color: #990000">=</span> <span style="color: #993399">16</span><span style="color: #990000">;</span>
+<a name="line679">679: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* Emit buffered correction bits that must be associated with ZRL */</span></span>
+<a name="line680">680: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_buffered_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> BR_buffer<span style="color: #990000">,</span> BR<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line681">681: </a>      BR_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* BE bits are gone now */</span></span>
+<a name="line682">682: </a>      BR <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line683">683: </a>    <span style="color: #FF0000">}</span>
+<a name="line684">684: </a>
+<a name="line685">685: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* If the coef was previously nonzero, it only needs a correction bit.</span></span>
+<a name="line686">686: </a><span style="font-style: italic"><span style="color: #9A1900">     * NOTE: a straight translation of the spec's figure G.7 would suggest</span></span>
+<a name="line687">687: </a><span style="font-style: italic"><span style="color: #9A1900">     * that we also need to test r &gt; 15.  But if r &gt; 15, we can only get here</span></span>
+<a name="line688">688: </a><span style="font-style: italic"><span style="color: #9A1900">     * if k &gt; EOB, which implies that this coefficient is not 1.</span></span>
+<a name="line689">689: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line690">690: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>temp <span style="color: #990000">&gt;</span> <span style="color: #993399">1</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line691">691: </a>      <span style="font-style: italic"><span style="color: #9A1900">/* The correction bit is the next bit of the absolute value. */</span></span>
+<a name="line692">692: </a>      BR_buffer<span style="color: #990000">[</span>BR<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">]</span> <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #009900">char</span><span style="color: #990000">)</span> <span style="color: #990000">(</span>temp <span style="color: #990000">&amp;</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line693">693: </a>      <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line694">694: </a>    <span style="color: #FF0000">}</span>
+<a name="line695">695: </a>
+<a name="line696">696: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit any pending EOBRUN and the BE correction bits */</span></span>
+<a name="line697">697: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line698">698: </a>
+<a name="line699">699: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Count/emit Huffman symbol for run length / number of bits */</span></span>
+<a name="line700">700: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_symbol</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">,</span> <span style="color: #990000">(</span>r <span style="color: #990000">&lt;</span><span style="color: #990000">&lt;</span> <span style="color: #993399">4</span><span style="color: #990000">)</span> <span style="color: #990000">+</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line701">701: </a>
+<a name="line702">702: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit output bit for newly-nonzero coef */</span></span>
+<a name="line703">703: </a>    temp <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="color: #990000">(</span><span style="color: #990000">*</span>block<span style="color: #990000">)</span><span style="color: #990000">[</span>jpeg_natural_order<span style="color: #990000">[</span>k<span style="color: #990000">]</span><span style="color: #990000">]</span> <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #990000">?</span> <span style="color: #993399">0</span> <span style="color: #990000">:</span> <span style="color: #993399">1</span><span style="color: #990000">;</span>
+<a name="line704">704: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> <span style="color: #990000">(</span><span style="color: #009900">unsigned</span> <span style="color: #009900">int</span><span style="color: #990000">)</span> temp<span style="color: #990000">,</span> <span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line705">705: </a>
+<a name="line706">706: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* Emit buffered correction bits that must be associated with this code */</span></span>
+<a name="line707">707: </a>    <span style="font-weight: bold"><span style="color: #000000">emit_buffered_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">,</span> BR_buffer<span style="color: #990000">,</span> BR<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line708">708: </a>    BR_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer<span style="color: #990000">;</span> <span style="font-style: italic"><span style="color: #9A1900">/* BE bits are gone now */</span></span>
+<a name="line709">709: </a>    BR <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>
+<a name="line710">710: </a>    r <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span>                      <span style="font-style: italic"><span style="color: #9A1900">/* reset zero run length */</span></span>
+<a name="line711">711: </a>  <span style="color: #FF0000">}</span>
+<a name="line712">712: </a>
+<a name="line713">713: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>r <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> BR <span style="color: #990000">&gt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>        <span style="font-style: italic"><span style="color: #9A1900">/* If there are trailing zeroes, */</span></span>
+<a name="line714">714: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* count an EOB */</span></span>
+<a name="line715">715: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE <span style="color: #990000">+</span><span style="color: #990000">=</span> BR<span style="color: #990000">;</span>          <span style="font-style: italic"><span style="color: #9A1900">/* concat my correction bits to older ones */</span></span>
+<a name="line716">716: </a>    <span style="font-style: italic"><span style="color: #9A1900">/* We force out the EOB if we risk either:</span></span>
+<a name="line717">717: </a><span style="font-style: italic"><span style="color: #9A1900">     * 1. overflow of the EOB counter;</span></span>
+<a name="line718">718: </a><span style="font-style: italic"><span style="color: #9A1900">     * 2. overflow of the correction bit buffer during the next MCU.</span></span>
+<a name="line719">719: </a><span style="font-style: italic"><span style="color: #9A1900">     */</span></span>
+<a name="line720">720: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>EOBRUN <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0x7FFF</span> <span style="color: #990000">|</span><span style="color: #990000">|</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>BE <span style="color: #990000">&gt;</span> <span style="color: #990000">(</span>MAX_CORR_BITS<span style="color: #990000">-</span>DCTSIZE2<span style="color: #990000">+</span><span style="color: #993399">1</span><span style="color: #990000">)</span><span style="color: #990000">)</span>
+<a name="line721">721: </a>      <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line722">722: </a>  <span style="color: #FF0000">}</span>
+<a name="line723">723: </a>
+<a name="line724">724: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line725">725: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line726">726: </a>
+<a name="line727">727: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Update restart-interval state too */</span></span>
+<a name="line728">728: </a>  <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line729">729: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line730">730: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restart_interval<span style="color: #990000">;</span>
+<a name="line731">731: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">;</span>
+<a name="line732">732: </a>      entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_restart_num <span style="color: #990000">&amp;</span><span style="color: #990000">=</span> <span style="color: #993399">7</span><span style="color: #990000">;</span>
+<a name="line733">733: </a>    <span style="color: #FF0000">}</span>
+<a name="line734">734: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>restarts_to_go<span style="color: #990000">-</span><span style="color: #990000">-</span><span style="color: #990000">;</span>
+<a name="line735">735: </a>  <span style="color: #FF0000">}</span>
+<a name="line736">736: </a>
+<a name="line737">737: </a>  <span style="font-weight: bold"><span style="color: #0000FF">return</span></span> TRUE<span style="color: #990000">;</span>
+<a name="line738">738: </a><span style="color: #FF0000">}</span>
+<a name="line739">739: </a>
+<a name="line740">740: </a>
+<a name="line741">741: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line742">742: </a><span style="font-style: italic"><span style="color: #9A1900"> * Finish up at the end of a Huffman-compressed progressive scan.</span></span>
+<a name="line743">743: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line744">744: </a>
+<a name="line745">745: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line746">746: </a><span style="font-weight: bold"><span style="color: #000000">finish_pass_phuff</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line747">747: </a><span style="color: #FF0000">{</span>   
+<a name="line748">748: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line749">749: </a>
+<a name="line750">750: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line751">751: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line752">752: </a>
+<a name="line753">753: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Flush out any buffered data */</span></span>
+<a name="line754">754: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line755">755: </a>  <span style="font-weight: bold"><span style="color: #000000">flush_bits</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line756">756: </a>
+<a name="line757">757: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>next_output_byte<span style="color: #990000">;</span>
+<a name="line758">758: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dest<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer <span style="color: #990000">=</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>free_in_buffer<span style="color: #990000">;</span>
+<a name="line759">759: </a><span style="color: #FF0000">}</span>
+<a name="line760">760: </a>
+<a name="line761">761: </a>
+<a name="line762">762: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line763">763: </a><span style="font-style: italic"><span style="color: #9A1900"> * Finish up a statistics-gathering pass and create the new Huffman tables.</span></span>
+<a name="line764">764: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line765">765: </a>
+<a name="line766">766: </a><span style="font-weight: bold"><span style="color: #000000">METHODDEF</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line767">767: </a><span style="font-weight: bold"><span style="color: #000000">finish_pass_gather_phuff</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line768">768: </a><span style="color: #FF0000">{</span>
+<a name="line769">769: </a>  phuff_entropy_ptr entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy<span style="color: #990000">;</span>
+<a name="line770">770: </a>  boolean is_DC_band<span style="color: #990000">;</span>
+<a name="line771">771: </a>  <span style="color: #009900">int</span> ci<span style="color: #990000">,</span> tbl<span style="color: #990000">;</span>
+<a name="line772">772: </a>  jpeg_component_info <span style="color: #990000">*</span> compptr<span style="color: #990000">;</span>
+<a name="line773">773: </a>  JHUFF_TBL <span style="color: #990000">*</span><span style="color: #990000">*</span>htblptr<span style="color: #990000">;</span>
+<a name="line774">774: </a>  boolean did<span style="color: #990000">[</span>NUM_HUFF_TBLS<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line775">775: </a>
+<a name="line776">776: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Flush out buffered data (all we care about is counting the EOB symbol) */</span></span>
+<a name="line777">777: </a>  <span style="font-weight: bold"><span style="color: #000000">emit_eobrun</span></span><span style="color: #990000">(</span>entropy<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line778">778: </a>
+<a name="line779">779: </a>  is_DC_band <span style="color: #990000">=</span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ss <span style="color: #990000">=</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line780">780: </a>
+<a name="line781">781: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* It's important not to apply jpeg_gen_optimal_table more than once</span></span>
+<a name="line782">782: </a><span style="font-style: italic"><span style="color: #9A1900">   * per table, because it clobbers the input frequency counts!</span></span>
+<a name="line783">783: </a><span style="font-style: italic"><span style="color: #9A1900">   */</span></span>
+<a name="line784">784: </a>  <span style="font-weight: bold"><span style="color: #000000">MEMZERO</span></span><span style="color: #990000">(</span>did<span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>did<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line785">785: </a>
+<a name="line786">786: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>ci <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> ci <span style="color: #990000">&lt;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>comps_in_scan<span style="color: #990000">;</span> ci<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line787">787: </a>    compptr <span style="color: #990000">=</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>cur_comp_info<span style="color: #990000">[</span>ci<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line788">788: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_DC_band<span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line789">789: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>Ah <span style="color: #990000">!</span><span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>       <span style="font-style: italic"><span style="color: #9A1900">/* DC refinement needs no table */</span></span>
+<a name="line790">790: </a>        <span style="font-weight: bold"><span style="color: #0000FF">continue</span></span><span style="color: #990000">;</span>
+<a name="line791">791: </a>      tbl <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_tbl_no<span style="color: #990000">;</span>
+<a name="line792">792: </a>    <span style="color: #FF0000">}</span> <span style="font-weight: bold"><span style="color: #0000FF">else</span></span> <span style="color: #FF0000">{</span>
+<a name="line793">793: </a>      tbl <span style="color: #990000">=</span> compptr<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_tbl_no<span style="color: #990000">;</span>
+<a name="line794">794: </a>    <span style="color: #FF0000">}</span>
+<a name="line795">795: </a>    <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">!</span> did<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line796">796: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span>is_DC_band<span style="color: #990000">)</span>
+<a name="line797">797: </a>        htblptr <span style="color: #990000">=</span> <span style="color: #990000">&amp;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>dc_huff_tbl_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line798">798: </a>      <span style="font-weight: bold"><span style="color: #0000FF">else</span></span>
+<a name="line799">799: </a>        htblptr <span style="color: #990000">=</span> <span style="color: #990000">&amp;</span> cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>ac_huff_tbl_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">;</span>
+<a name="line800">800: </a>      <span style="font-weight: bold"><span style="color: #0000FF">if</span></span> <span style="color: #990000">(</span><span style="color: #990000">*</span>htblptr <span style="color: #990000">=</span><span style="color: #990000">=</span> NULL<span style="color: #990000">)</span>
+<a name="line801">801: </a>        <span style="color: #990000">*</span>htblptr <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #000000">jpeg_alloc_huff_table</span></span><span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line802">802: </a>      <span style="font-weight: bold"><span style="color: #000000">jpeg_gen_optimal_table</span></span><span style="color: #990000">(</span>cinfo<span style="color: #990000">,</span> <span style="color: #990000">*</span>htblptr<span style="color: #990000">,</span> entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line803">803: </a>      did<span style="color: #990000">[</span>tbl<span style="color: #990000">]</span> <span style="color: #990000">=</span> TRUE<span style="color: #990000">;</span>
+<a name="line804">804: </a>    <span style="color: #FF0000">}</span>
+<a name="line805">805: </a>  <span style="color: #FF0000">}</span>
+<a name="line806">806: </a><span style="color: #FF0000">}</span>
+<a name="line807">807: </a>
+<a name="line808">808: </a>
+<a name="line809">809: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line810">810: </a><span style="font-style: italic"><span style="color: #9A1900"> * Module initialization routine for progressive Huffman entropy encoding.</span></span>
+<a name="line811">811: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line812">812: </a>
+<a name="line813">813: </a><span style="font-weight: bold"><span style="color: #000000">GLOBAL</span></span><span style="color: #990000">(</span><span style="color: #009900">void</span><span style="color: #990000">)</span>
+<a name="line814">814: </a><span style="font-weight: bold"><span style="color: #000000">jinit_phuff_encoder</span></span> <span style="color: #990000">(</span>j_compress_ptr cinfo<span style="color: #990000">)</span>
+<a name="line815">815: </a><span style="color: #FF0000">{</span>
+<a name="line816">816: </a>  phuff_entropy_ptr entropy<span style="color: #990000">;</span>
+<a name="line817">817: </a>  <span style="color: #009900">int</span> i<span style="color: #990000">;</span>
+<a name="line818">818: </a>
+<a name="line819">819: </a>  entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span>phuff_entropy_ptr<span style="color: #990000">)</span>
+<a name="line820">820: </a>    <span style="color: #990000">(</span><span style="color: #990000">*</span>cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>mem<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>alloc_small<span style="color: #990000">)</span> <span style="color: #990000">(</span><span style="color: #990000">(</span>j_common_ptr<span style="color: #990000">)</span> cinfo<span style="color: #990000">,</span> JPOOL_IMAGE<span style="color: #990000">,</span>
+<a name="line821">821: </a>                                <span style="font-weight: bold"><span style="color: #000000">SIZEOF</span></span><span style="color: #990000">(</span>phuff_entropy_encoder<span style="color: #990000">)</span><span style="color: #990000">)</span><span style="color: #990000">;</span>
+<a name="line822">822: </a>  cinfo<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>entropy <span style="color: #990000">=</span> <span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">struct</span></span> jpeg_entropy_encoder <span style="color: #990000">*</span><span style="color: #990000">)</span> entropy<span style="color: #990000">;</span>
+<a name="line823">823: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>pub<span style="color: #990000">.</span>start_pass <span style="color: #990000">=</span> start_pass_phuff<span style="color: #990000">;</span>
+<a name="line824">824: </a>
+<a name="line825">825: </a>  <span style="font-style: italic"><span style="color: #9A1900">/* Mark tables unallocated */</span></span>
+<a name="line826">826: </a>  <span style="font-weight: bold"><span style="color: #0000FF">for</span></span> <span style="color: #990000">(</span>i <span style="color: #990000">=</span> <span style="color: #993399">0</span><span style="color: #990000">;</span> i <span style="color: #990000">&lt;</span> NUM_HUFF_TBLS<span style="color: #990000">;</span> i<span style="color: #990000">+</span><span style="color: #990000">+</span><span style="color: #990000">)</span> <span style="color: #FF0000">{</span>
+<a name="line827">827: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>derived_tbls<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line828">828: </a>    entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>count_ptrs<span style="color: #990000">[</span>i<span style="color: #990000">]</span> <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>
+<a name="line829">829: </a>  <span style="color: #FF0000">}</span>
+<a name="line830">830: </a>  entropy<span style="color: #990000">-</span><span style="color: #990000">&gt;</span>bit_buffer <span style="color: #990000">=</span> NULL<span style="color: #990000">;</span>   <span style="font-style: italic"><span style="color: #9A1900">/* needed only in AC refinement scan */</span></span>
+<a name="line831">831: </a><span style="color: #FF0000">}</span>
+<a name="line832">832: </a>
+<a name="line833">833: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* C_PROGRESSIVE_SUPPORTED */</span></span>
+</tt>
+</pre>
+</body>
+</html>

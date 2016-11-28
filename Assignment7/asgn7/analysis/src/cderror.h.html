@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type"
+content="text/html; charset=iso-8859-1" />
+<meta name="GENERATOR" content="GNU source-highlight 1.9
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite" />
+<title>../src/cderror.h</title>
+</head>
+<body style="background-color: #FFFFFF; color: #000000; a: #0000EE; a.visited: #551A8B; a.active: #FF0000">
+<pre>
+<tt>
+<a name="line1">001: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line2">002: </a><span style="font-style: italic"><span style="color: #9A1900"> * cderror.h</span></span>
+<a name="line3">003: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line4">004: </a><span style="font-style: italic"><span style="color: #9A1900"> * Copyright (C) 1994-1997, Thomas G. Lane.</span></span>
+<a name="line5">005: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file is part of the Independent JPEG Group's software.</span></span>
+<a name="line6">006: </a><span style="font-style: italic"><span style="color: #9A1900"> * For conditions of distribution and use, see the accompanying README file.</span></span>
+<a name="line7">007: </a><span style="font-style: italic"><span style="color: #9A1900"> *</span></span>
+<a name="line8">008: </a><span style="font-style: italic"><span style="color: #9A1900"> * This file defines the error and message codes for the cjpeg/djpeg</span></span>
+<a name="line9">009: </a><span style="font-style: italic"><span style="color: #9A1900"> * applications.  These strings are not needed as part of the JPEG library</span></span>
+<a name="line10">010: </a><span style="font-style: italic"><span style="color: #9A1900"> * proper.</span></span>
+<a name="line11">011: </a><span style="font-style: italic"><span style="color: #9A1900"> * Edit this file to add new codes, or to translate the message strings to</span></span>
+<a name="line12">012: </a><span style="font-style: italic"><span style="color: #9A1900"> * some other language.</span></span>
+<a name="line13">013: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line14">014: </a>
+<a name="line15">015: </a><span style="font-style: italic"><span style="color: #9A1900">/*</span></span>
+<a name="line16">016: </a><span style="font-style: italic"><span style="color: #9A1900"> * To define the enum list of message codes, include this file without</span></span>
+<a name="line17">017: </a><span style="font-style: italic"><span style="color: #9A1900"> * defining macro JMESSAGE.  To create a message string table, include it</span></span>
+<a name="line18">018: </a><span style="font-style: italic"><span style="color: #9A1900"> * again with a suitable JMESSAGE definition (see jerror.c for an example).</span></span>
+<a name="line19">019: </a><span style="font-style: italic"><span style="color: #9A1900"> */</span></span>
+<a name="line20">020: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> JMESSAGE
+<a name="line21">021: </a><span style="font-weight: bold"><span style="color: #000080">#ifndef</span></span> CDERROR_H
+<a name="line22">022: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> CDERROR_H
+<a name="line23">023: </a><span style="font-style: italic"><span style="color: #9A1900">/* First time through, define the enum list */</span></span>
+<a name="line24">024: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> JMAKE_ENUM_LIST
+<a name="line25">025: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line26">026: </a><span style="font-style: italic"><span style="color: #9A1900">/* Repeated inclusions of this file are no-ops unless JMESSAGE is defined */</span></span>
+<a name="line27">027: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>code<span style="color: #990000">,</span>string<span style="color: #990000">)</span>
+<a name="line28">028: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* CDERROR_H */</span></span>
+<a name="line29">029: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* JMESSAGE */</span></span>
+<a name="line30">030: </a>
+<a name="line31">031: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> JMAKE_ENUM_LIST
+<a name="line32">032: </a>
+<a name="line33">033: </a><span style="font-weight: bold"><span style="color: #0000FF">typedef</span></span> <span style="font-weight: bold"><span style="color: #0000FF">enum</span></span> <span style="color: #FF0000">{</span>
+<a name="line34">034: </a>
+<a name="line35">035: </a><span style="font-weight: bold"><span style="color: #000080">#define</span></span> <span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>code<span style="color: #990000">,</span>string<span style="color: #990000">)</span>   code <span style="color: #990000">,</span>
+<a name="line36">036: </a>
+<a name="line37">037: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* JMAKE_ENUM_LIST */</span></span>
+<a name="line38">038: </a>
+<a name="line39">039: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JMSG_FIRSTADDONCODE<span style="color: #990000">=</span><span style="color: #993399">1000</span><span style="color: #990000">,</span> NULL<span style="color: #990000">)</span> <span style="font-style: italic"><span style="color: #9A1900">/* Must be first entry! */</span></span>
+<a name="line40">040: </a>
+<a name="line41">041: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> BMP_SUPPORTED
+<a name="line42">042: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_BADCMAP<span style="color: #990000">,</span> <span style="color: #FF0000">"Unsupported BMP colormap format"</span><span style="color: #990000">)</span>
+<a name="line43">043: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_BADDEPTH<span style="color: #990000">,</span> <span style="color: #FF0000">"Only 8- and 24-bit BMP files are supported"</span><span style="color: #990000">)</span>
+<a name="line44">044: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_BADHEADER<span style="color: #990000">,</span> <span style="color: #FF0000">"Invalid BMP file: bad header length"</span><span style="color: #990000">)</span>
+<a name="line45">045: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_BADPLANES<span style="color: #990000">,</span> <span style="color: #FF0000">"Invalid BMP file: biPlanes not equal to 1"</span><span style="color: #990000">)</span>
+<a name="line46">046: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_COLORSPACE<span style="color: #990000">,</span> <span style="color: #FF0000">"BMP output must be grayscale or RGB"</span><span style="color: #990000">)</span>
+<a name="line47">047: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_COMPRESSED<span style="color: #990000">,</span> <span style="color: #FF0000">"Sorry, compressed BMPs not yet supported"</span><span style="color: #990000">)</span>
+<a name="line48">048: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BMP_NOT<span style="color: #990000">,</span> <span style="color: #FF0000">"Not a BMP file - does not start with BM"</span><span style="color: #990000">)</span>
+<a name="line49">049: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_BMP<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u 24-bit BMP image"</span><span style="color: #990000">)</span>
+<a name="line50">050: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_BMP_MAPPED<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u 8-bit colormapped BMP image"</span><span style="color: #990000">)</span>
+<a name="line51">051: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_BMP_OS2<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u 24-bit OS2 BMP image"</span><span style="color: #990000">)</span>
+<a name="line52">052: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_BMP_OS2_MAPPED<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u 8-bit colormapped OS2 BMP image"</span><span style="color: #990000">)</span>
+<a name="line53">053: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* BMP_SUPPORTED */</span></span>
+<a name="line54">054: </a>
+<a name="line55">055: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> GIF_SUPPORTED
+<a name="line56">056: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_GIF_BUG<span style="color: #990000">,</span> <span style="color: #FF0000">"GIF output got confused"</span><span style="color: #990000">)</span>
+<a name="line57">057: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_GIF_CODESIZE<span style="color: #990000">,</span> <span style="color: #FF0000">"Bogus GIF codesize %d"</span><span style="color: #990000">)</span>
+<a name="line58">058: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_GIF_COLORSPACE<span style="color: #990000">,</span> <span style="color: #FF0000">"GIF output must be grayscale or RGB"</span><span style="color: #990000">)</span>
+<a name="line59">059: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_GIF_IMAGENOTFOUND<span style="color: #990000">,</span> <span style="color: #FF0000">"Too few images in GIF file"</span><span style="color: #990000">)</span>
+<a name="line60">060: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_GIF_NOT<span style="color: #990000">,</span> <span style="color: #FF0000">"Not a GIF file"</span><span style="color: #990000">)</span>
+<a name="line61">061: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_GIF<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%ux%d GIF image"</span><span style="color: #990000">)</span>
+<a name="line62">062: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_GIF_BADVERSION<span style="color: #990000">,</span>
+<a name="line63">063: </a>         <span style="color: #FF0000">"Warning: unexpected GIF version number '%c%c%c'"</span><span style="color: #990000">)</span>
+<a name="line64">064: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_GIF_EXTENSION<span style="color: #990000">,</span> <span style="color: #FF0000">"Ignoring GIF extension block of type 0x%02x"</span><span style="color: #990000">)</span>
+<a name="line65">065: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_GIF_NONSQUARE<span style="color: #990000">,</span> <span style="color: #FF0000">"Caution: nonsquare pixels in input"</span><span style="color: #990000">)</span>
+<a name="line66">066: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JWRN_GIF_BADDATA<span style="color: #990000">,</span> <span style="color: #FF0000">"Corrupt data in GIF file"</span><span style="color: #990000">)</span>
+<a name="line67">067: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JWRN_GIF_CHAR<span style="color: #990000">,</span> <span style="color: #FF0000">"Bogus char 0x%02x in GIF file, ignoring"</span><span style="color: #990000">)</span>
+<a name="line68">068: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JWRN_GIF_ENDCODE<span style="color: #990000">,</span> <span style="color: #FF0000">"Premature end of GIF image"</span><span style="color: #990000">)</span>
+<a name="line69">069: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JWRN_GIF_NOMOREDATA<span style="color: #990000">,</span> <span style="color: #FF0000">"Ran out of GIF bits"</span><span style="color: #990000">)</span>
+<a name="line70">070: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* GIF_SUPPORTED */</span></span>
+<a name="line71">071: </a>
+<a name="line72">072: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> PPM_SUPPORTED
+<a name="line73">073: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_PPM_COLORSPACE<span style="color: #990000">,</span> <span style="color: #FF0000">"PPM output must be grayscale or RGB"</span><span style="color: #990000">)</span>
+<a name="line74">074: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_PPM_NONNUMERIC<span style="color: #990000">,</span> <span style="color: #FF0000">"Nonnumeric data in PPM file"</span><span style="color: #990000">)</span>
+<a name="line75">075: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_PPM_NOT<span style="color: #990000">,</span> <span style="color: #FF0000">"Not a PPM/PGM file"</span><span style="color: #990000">)</span>
+<a name="line76">076: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_PGM<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u PGM image"</span><span style="color: #990000">)</span>
+<a name="line77">077: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_PGM_TEXT<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u text PGM image"</span><span style="color: #990000">)</span>
+<a name="line78">078: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_PPM<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u PPM image"</span><span style="color: #990000">)</span>
+<a name="line79">079: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_PPM_TEXT<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u text PPM image"</span><span style="color: #990000">)</span>
+<a name="line80">080: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* PPM_SUPPORTED */</span></span>
+<a name="line81">081: </a>
+<a name="line82">082: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> RLE_SUPPORTED
+<a name="line83">083: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_BADERROR<span style="color: #990000">,</span> <span style="color: #FF0000">"Bogus error code from RLE library"</span><span style="color: #990000">)</span>
+<a name="line84">084: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_COLORSPACE<span style="color: #990000">,</span> <span style="color: #FF0000">"RLE output must be grayscale or RGB"</span><span style="color: #990000">)</span>
+<a name="line85">085: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_DIMENSIONS<span style="color: #990000">,</span> <span style="color: #FF0000">"Image dimensions (%ux%u) too large for RLE"</span><span style="color: #990000">)</span>
+<a name="line86">086: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_EMPTY<span style="color: #990000">,</span> <span style="color: #FF0000">"Empty RLE file"</span><span style="color: #990000">)</span>
+<a name="line87">087: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_EOF<span style="color: #990000">,</span> <span style="color: #FF0000">"Premature EOF in RLE header"</span><span style="color: #990000">)</span>
+<a name="line88">088: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_MEM<span style="color: #990000">,</span> <span style="color: #FF0000">"Insufficient memory for RLE header"</span><span style="color: #990000">)</span>
+<a name="line89">089: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_NOT<span style="color: #990000">,</span> <span style="color: #FF0000">"Not an RLE file"</span><span style="color: #990000">)</span>
+<a name="line90">090: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_TOOMANYCHANNELS<span style="color: #990000">,</span> <span style="color: #FF0000">"Cannot handle %d output channels for RLE"</span><span style="color: #990000">)</span>
+<a name="line91">091: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_RLE_UNSUPPORTED<span style="color: #990000">,</span> <span style="color: #FF0000">"Cannot handle this RLE setup"</span><span style="color: #990000">)</span>
+<a name="line92">092: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_RLE<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u full-color RLE file"</span><span style="color: #990000">)</span>
+<a name="line93">093: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_RLE_FULLMAP<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u full-color RLE file with map of length %d"</span><span style="color: #990000">)</span>
+<a name="line94">094: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_RLE_GRAY<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u grayscale RLE file"</span><span style="color: #990000">)</span>
+<a name="line95">095: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_RLE_MAPGRAY<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u grayscale RLE file with map of length %d"</span><span style="color: #990000">)</span>
+<a name="line96">096: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_RLE_MAPPED<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u colormapped RLE file with map of length %d"</span><span style="color: #990000">)</span>
+<a name="line97">097: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* RLE_SUPPORTED */</span></span>
+<a name="line98">098: </a>
+<a name="line99">099: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> TARGA_SUPPORTED
+<a name="line100">100: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_TGA_BADCMAP<span style="color: #990000">,</span> <span style="color: #FF0000">"Unsupported Targa colormap format"</span><span style="color: #990000">)</span>
+<a name="line101">101: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_TGA_BADPARMS<span style="color: #990000">,</span> <span style="color: #FF0000">"Invalid or unsupported Targa file"</span><span style="color: #990000">)</span>
+<a name="line102">102: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_TGA_COLORSPACE<span style="color: #990000">,</span> <span style="color: #FF0000">"Targa output must be grayscale or RGB"</span><span style="color: #990000">)</span>
+<a name="line103">103: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_TGA<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u RGB Targa image"</span><span style="color: #990000">)</span>
+<a name="line104">104: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_TGA_GRAY<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u grayscale Targa image"</span><span style="color: #990000">)</span>
+<a name="line105">105: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JTRC_TGA_MAPPED<span style="color: #990000">,</span> <span style="color: #FF0000">"%ux%u colormapped Targa image"</span><span style="color: #990000">)</span>
+<a name="line106">106: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line107">107: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_TGA_NOTCOMP<span style="color: #990000">,</span> <span style="color: #FF0000">"Targa support was not compiled"</span><span style="color: #990000">)</span>
+<a name="line108">108: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* TARGA_SUPPORTED */</span></span>
+<a name="line109">109: </a>
+<a name="line110">110: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_BAD_CMAP_FILE<span style="color: #990000">,</span>
+<a name="line111">111: </a>         <span style="color: #FF0000">"Color map file is invalid or of unsupported format"</span><span style="color: #990000">)</span>
+<a name="line112">112: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_TOO_MANY_COLORS<span style="color: #990000">,</span>
+<a name="line113">113: </a>         <span style="color: #FF0000">"Output file format cannot handle %d colormap entries"</span><span style="color: #990000">)</span>
+<a name="line114">114: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_UNGETC_FAILED<span style="color: #990000">,</span> <span style="color: #FF0000">"ungetc failed"</span><span style="color: #990000">)</span>
+<a name="line115">115: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> TARGA_SUPPORTED
+<a name="line116">116: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_UNKNOWN_FORMAT<span style="color: #990000">,</span>
+<a name="line117">117: </a>         <span style="color: #FF0000">"Unrecognized input file format --- perhaps you need -targa"</span><span style="color: #990000">)</span>
+<a name="line118">118: </a><span style="font-weight: bold"><span style="color: #000080">#else</span></span>
+<a name="line119">119: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_UNKNOWN_FORMAT<span style="color: #990000">,</span> <span style="color: #FF0000">"Unrecognized input file format"</span><span style="color: #990000">)</span>
+<a name="line120">120: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span>
+<a name="line121">121: </a><span style="font-weight: bold"><span style="color: #000000">JMESSAGE</span></span><span style="color: #990000">(</span>JERR_UNSUPPORTED_FORMAT<span style="color: #990000">,</span> <span style="color: #FF0000">"Unsupported output file format"</span><span style="color: #990000">)</span>
+<a name="line122">122: </a>
+<a name="line123">123: </a><span style="font-weight: bold"><span style="color: #000080">#ifdef</span></span> JMAKE_ENUM_LIST
+<a name="line124">124: </a>
+<a name="line125">125: </a>  JMSG_LASTADDONCODE
+<a name="line126">126: </a><span style="color: #FF0000">}</span> ADDON_MESSAGE_CODE<span style="color: #990000">;</span>
+<a name="line127">127: </a>
+<a name="line128">128: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> JMAKE_ENUM_LIST
+<a name="line129">129: </a><span style="font-weight: bold"><span style="color: #000080">#endif</span></span> <span style="font-style: italic"><span style="color: #9A1900">/* JMAKE_ENUM_LIST */</span></span>
+<a name="line130">130: </a>
+<a name="line131">131: </a><span style="font-style: italic"><span style="color: #9A1900">/* Zap JMESSAGE macro so that future re-inclusions do nothing by default */</span></span>
+<a name="line132">132: </a><span style="font-weight: bold"><span style="color: #000080">#undef</span></span> JMESSAGE
+</tt>
+</pre>
+</body>
+</html>
