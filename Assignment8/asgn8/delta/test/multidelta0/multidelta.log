@@ -1,0 +1,28 @@
+verify the script passes now
+making a backup copy of file1.txt
+cp -f file1.txt file1.txt.bak
+preprocessing and flattening file1.txt
+cpp -P file1.txt.bak | /afs/cs.stanford.edu/u/mhn/delta/bin/topformflat 3 >file1.txt
+making a backup copy of file2.txt
+cp -f file2.txt file2.txt.bak
+preprocessing and flattening file2.txt
+cpp -P file2.txt.bak | /afs/cs.stanford.edu/u/mhn/delta/bin/topformflat 3 >file2.txt
+verify still passes script
+applying delta to file1.txt
+/afs/cs.stanford.edu/u/mhn/delta/bin/delta -in_place -test=./trivtest file1.txt
+applying delta to file2.txt
+/afs/cs.stanford.edu/u/mhn/delta/bin/delta -in_place -test=./trivtest file2.txt
+reverting to backup copy of file1.txt
+cp -f file1.txt.bak file1.txt
+reverting to backup copy of file2.txt
+cp -f file2.txt.bak file2.txt
+verify the script passes now
+making a backup copy of file1.txt
+cp -f file1.txt file1.txt.bak
+preprocessing and flattening file1.txt
+cpp -P file1.txt.bak | /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment8/asgn8/delta/bin/topformflat 3 >file1.txt
+verify the script passes now
+making a backup copy of file1.txt
+cp -f file1.txt file1.txt.bak
+preprocessing and flattening file1.txt
+cpp -P file1.txt.bak | /Users/leann/GATech_Classes/cs6340_SAT_fall16/cs6340/Assignment8/asgn8/delta/bin/topformflat 3 >file1.txt

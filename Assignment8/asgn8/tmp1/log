@@ -1,0 +1,22 @@
+delta settings:
+	temporary directory: tmp1
+	granularity: line
+	input: <stdin>
+
+delta start                             0 sec/00:00:00	Sat Dec  3 23:15:20 2016
+000.c, lines: 500                       2 sec/00:00:02	Sat Dec  3 23:15:22 2016
+001.c, lines: 250                       4 sec/00:00:04	Sat Dec  3 23:15:24 2016
+003.c, lines: 125                       6 sec/00:00:06	Sat Dec  3 23:15:26 2016
+010.c, lines: 93                        8 sec/00:00:08	Sat Dec  3 23:15:28 2016
+011.c, lines: 62                        10 sec/00:00:10	Sat Dec  3 23:15:30 2016
+017.c, lines: 47                        12 sec/00:00:12	Sat Dec  3 23:15:32 2016
+019.c, lines: 32                        14 sec/00:00:14	Sat Dec  3 23:15:34 2016
+024.c, lines: 24                        16 sec/00:00:16	Sat Dec  3 23:15:36 2016
+025.c, lines: 16                        18 sec/00:00:18	Sat Dec  3 23:15:38 2016
+031.c, lines: 12                        20 sec/00:00:20	Sat Dec  3 23:15:40 2016
+032.c, lines: 8                         22 sec/00:00:22	Sat Dec  3 23:15:42 2016
+038.c, lines: 6                         24 sec/00:00:24	Sat Dec  3 23:15:44 2016
+040.c, lines: 4                         27 sec/00:00:27	Sat Dec  3 23:15:47 2016
+045.c, lines: 3                         29 sec/00:00:29	Sat Dec  3 23:15:49 2016
+046.c, lines: 2                         31 sec/00:00:31	Sat Dec  3 23:15:51 2016
+delta done                              31 sec/00:00:31	Sat Dec  3 23:15:51 2016
