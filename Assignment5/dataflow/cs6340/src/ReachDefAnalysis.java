@@ -61,6 +61,13 @@ public class ReachDefAnalysis extends DataflowAnalysis<Pair<Quad, Register>> {
 		// consult any pointer analysis, call graph, or any method of the given
 		// program besides the provided main method.
 		
+		
+		//Try slide#12 of the Standford lecture:
+		// https://suif.stanford.edu/~courses/cs243/lectures/l2.pdf
+		// Maybe test out the approach to use the GEN[n] set.add return status to detect any change as it happens
+		// instead of a global level comparison after the fact, but may also need to consider changes driven by input changes
+		// but input changes are eventually traced back to some output change(s) at program level
+		//
 		// initialize all in and out sets to the empty set
 		for (BasicBlock bb : main.getCFG().reversePostOrder()) {
 			for (int i = 0; i < bb.size(); i++) {
